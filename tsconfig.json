@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "allowJs": false,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "commonjs",
+    "noUnusedLocals": true,
+    "outDir": "./built",
+    "skipLibCheck": true,
+    // "strict": true,
+    "target": "esnext"
+  },
+  "include": ["./src/**/*"]
+}

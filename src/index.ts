@@ -1,9 +1,13 @@
-const cors = require('cors');
-const app = require('express')();
+import cors from 'cors';
+import express from 'express';
+import http from 'http';
+import socket from 'socket.io';
+
+const app = express();
 app.use(cors());
 
-const server = require('http').createServer(app);
-const io = require('socket.io')(server);
+const server = http.createServer(app);
+const io = socket(server);
 
 const PORT = 3001;
 
@@ -22,7 +26,7 @@ const users = {
   }
 };
 
-let clientUsernames = {
+const clientUsernames = {
   // todo delete test data
   '123-456-789': 'Tracer'
 };
@@ -41,11 +45,15 @@ app.get('/rooms/:chatroom/messages', (req, res) => {
 
   console.log('GET chatroom messages:', chatroom);
 
-  const dummyData = [
-    { username: 'Gary', message: `Chatroom: ${chatroom}` },
+  const roomDummyData = [
+    {
+      username: 'Gary',
+      message: `Chatroom: ${chatroom}  -  ${Math.random() * 100000}`
+    },
     {
       username: 'Winston',
-      message: 'This is temp data until I decide how to do this properly...'
+      message:
+        'This is ROOM temp data until I decide how to do this properly...'
     },
     {
       username: 'Tracer',
@@ -53,8 +61,9 @@ app.get('/rooms/:chatroom/messages', (req, res) => {
     }
   ];
 
-  res.send(dummyData);
+  res.send(roomDummyData);
 });
+
 app.get('/users/:username/messages', (req, res) => {
   const username = req.params.username;
   const requesterUsername = req.header('RequesterUsername'); // todo the username of the user making the request should be gotten from a token or using equivalent security measures
@@ -65,15 +74,15 @@ app.get('/users/:username/messages', (req, res) => {
     req: req.params
   });
 
-  const dummyData = [
-    { username, message: `Hello!` },
+  const userDummyData = [
+    { username, message: `Hello!  -   ${Math.random() * 100000}` },
     {
       username,
-      message: 'This is test data!'
+      message: 'This is test USER data!'
     }
   ];
 
-  res.send(dummyData);
+  res.send(userDummyData);
 });
 
 app.post('/room/:chatroom', (req, res) => {
@@ -89,7 +98,7 @@ app.post('/room/:chatroom', (req, res) => {
   io.emit('rooms updated', [...rooms.values()]);
 });
 
-//===============================================
+// ===============================================
 
 const broadcastUserOnlineStatus = ({ username, online }) => {
   console.log('User online status change', { username, online });
@@ -236,7 +245,7 @@ io.on('connection', client => {
       return undefined;
     }
 
-    client.broadcast.to(chatroom).emit('message', {
+    io.to(chatroom).emit('message', {
       username,
       message
     });
@@ -257,7 +266,7 @@ io.on('connection', client => {
     }
     const clientId = user.clientId; // todo may need to null check this as it will be undefined if the user if not logged in
 
-    client.broadcast.to(clientId).emit('message', {
+    client.to(clientId).emit('message', {
       username,
       message
     });

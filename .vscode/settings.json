@@ -1,0 +1,10 @@
+// including this file to so I can easily use consistant settings on different machines
+{
+  "editor.formatOnSave": true,
+  "prettier.tslintIntegration": true,
+  "prettier.eslintIntegration": false,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.tslint": true
+  },
+  "javascript.format.enable": false
+}

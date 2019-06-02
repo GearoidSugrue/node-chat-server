@@ -1,0 +1,9 @@
+{
+  "extends": ["tslint:recommended", "tslint-config-prettier"],
+  "jsRules": {},
+  "rules": {
+    "no-console": [false], // allowing console log until a proper logger is implemented
+    "object-literal-sort-keys": false
+  },
+  "rulesDirectory": []
+}
