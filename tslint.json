@@ -3,7 +3,8 @@
   "jsRules": {},
   "rules": {
     "no-console": [false], // allowing console log until a proper logger is implemented
-    "object-literal-sort-keys": false
+    "object-literal-sort-keys": false,
+    "interface-over-type-literal": [false]
   },
   "rulesDirectory": []
 }
