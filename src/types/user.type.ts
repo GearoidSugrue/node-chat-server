@@ -9,6 +9,7 @@ export type User = Readonly<{
   userId: string;
   username: string;
   messages: { [key: string]: Message[] }; // I'll probably store messages some else when a DB is integrated
-  online?: boolean; // todo maybe this could also be moved out?
+  chatroomIds: string[];
+  online?: boolean; // todo maybe this could also be moved out? Maybe after graphql implementation
   clientId?: string; // todo find a more suitable place for this property
 }>;

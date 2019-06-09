@@ -28,7 +28,11 @@ export class SocketManager {
     this.io = socket(server);
 
     this.io.on(ChatEvent.CONNECT, (client: Socket) => {
-      this.socketClients[client.id] = new SocketClient(client, usersStore);
+      this.socketClients[client.id] = new SocketClient(
+        this.io,
+        client,
+        usersStore
+      );
 
       client.on(ChatEvent.DISCONNECT, () =>
         this.handleUserDisconnect(client.id)
@@ -36,6 +40,13 @@ export class SocketManager {
       client.on(ChatEvent.MESSAGE_USER, ({ toUserId, message }) =>
         this.handleMessageUser({
           toUserId,
+          message,
+          fromSocketClient: this.socketClients[client.id]
+        })
+      );
+      client.on(ChatEvent.MESSAGE_CHATROOM, ({ chatroomId, message }) =>
+        this.sendMessageToChatroom({
+          chatroomId,
           message,
           fromSocketClient: this.socketClients[client.id]
         })
@@ -69,18 +80,64 @@ export class SocketManager {
     }
     const newMessage: Message = {
       message,
+      toUserId,
       username: fromUsername,
       userId: fromUserId
     };
 
-    this.io.to(toSocketClient.getClientId()).send(newMessage);
-    this.io.to(fromSocketClient.getClientId()).send(newMessage);
+    // this.io.to(toSocketClient.getClientId()).send(newMessage);
+    // this.io.to(fromSocketClient.getClientId()).send(newMessage);
+
+    // this.io.sockets.socket(socketId)
+    const userSelfMessage =
+      toSocketClient.getClientId() === fromSocketClient.getClientId();
+
+    if (userSelfMessage) {
+      this.io.sockets.connected[toSocketClient.getClientId()].send(newMessage);
+    } else {
+      this.io.sockets.connected[toSocketClient.getClientId()].send(newMessage);
+      this.io.sockets.connected[fromSocketClient.getClientId()].send(
+        newMessage
+      );
+    }
 
     // todo add message to message history
     // this.usersStore.updateUserDetails(...)
 
     console.log(
-      `${fromUsername} (${fromUserId}) messaged user ${toUserId}: ${message}`
+      `${fromUsername} (${fromUserId} - ${fromSocketClient.getClientId()}) messaged user ${toUserId} (${toSocketClient.getClientId()}): ${message}`
+    );
+  }
+
+  public sendMessageToChatroom({
+    chatroomId,
+    message,
+    fromSocketClient
+  }): void {
+    const fromUserId = fromSocketClient.getUserId();
+
+    if (!fromUserId) {
+      console.warn(`Invalid attempt to message chatroom:`, {
+        chatroomId,
+        message,
+        clientId: fromSocketClient.getClientId()
+      });
+      return undefined;
+    }
+    const { username } = this.usersStore.getUser(fromUserId);
+
+    const newMessage: Message = {
+      chatroomId,
+      username,
+      message,
+      userId: fromUserId
+    };
+
+    this.io.to(chatroomId).send(newMessage);
+
+    // todo chatroomsStore needs to be updated with the message!!!
+    console.log(
+      `${username} (${fromUserId}) messaged chatroom ${chatroomId}: ${message}`
     );
   }
 

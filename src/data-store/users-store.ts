@@ -1,16 +1,18 @@
 import { Message } from '../types/message.type';
 import { User } from '../types/user.type';
 
-const dummyUsers = {
+const dummyUsers: { [key: string]: User } = {
   'zzzzz-zzzzz-zzzzz': {
     userId: 'zzzzz-zzzzz-zzzzz',
     username: 'Narrator',
+    chatroomIds: ['9999-8888-77777'],
     online: false,
     messages: {}
   },
   'aaaaa-bbbbb-cccc': {
     userId: 'aaaaa-bbbbb-cccc',
     username: 'Winston',
+    chatroomIds: ['9999-8888-77777'],
     online: false,
     messages: {
       'ddddd-eeeee-fffff': [
@@ -25,18 +27,21 @@ const dummyUsers = {
   'ddddd-eeeee-fffff': {
     userId: 'ddddd-eeeee-fffff',
     username: 'Nathaniel',
+    chatroomIds: ['9999-8888-77777'],
     online: true,
     messages: {}
   },
   'ggggg-hhhhh-iiiiiii': {
     userId: 'ggggg-hhhhh-iiiiiii',
     username: 'Artilleryman',
+    chatroomIds: ['9999-8888-77777'],
     online: false,
     messages: {}
   },
   'fiendishly-handsome-fellow': {
     userId: 'fiendishly-handsome-fellow',
     username: 'Gary the Great',
+    chatroomIds: ['1111-2222-33333', '9999-8888-77777'],
     online: false,
     messages: {}
   }
@@ -88,6 +93,7 @@ export class UsersStore {
     this.users[userId] = {
       userId,
       username,
+      chatroomIds: [],
       messages: {}
     };
     return this.users[userId];
