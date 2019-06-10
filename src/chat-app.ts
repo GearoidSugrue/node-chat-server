@@ -3,13 +3,13 @@ import express, { Express } from 'express';
 
 import { ChatroomsStore } from './data-store/chatroom-store';
 import { UsersStore } from './data-store/users-store';
-import { SocketManager } from './socket/socket-manager';
+import { ChatBroadcaster } from './socket/chat-broadcaster';
 import { User } from './types/user.type';
 
 export class ChatApp {
   constructor(
     app: Express,
-    socketManager: SocketManager,
+    chatBroadcaster: ChatBroadcaster,
     usersStore: UsersStore,
     chatroomsStore: ChatroomsStore
   ) {
@@ -57,7 +57,7 @@ export class ChatApp {
       const newChatroom = chatroomsStore.addChatroom(chatroomName);
 
       if (newChatroom) {
-        socketManager.broadcastNewChatroom(newChatroom);
+        chatBroadcaster.broadcastNewChatroom(newChatroom);
         return res.send(newChatroom);
       }
       return res.status(400).send({ message: 'Invalid chatroom name' });
@@ -69,31 +69,31 @@ export class ChatApp {
       const newUser: User = usersStore.addUser(username);
 
       if (newUser) {
-        socketManager.broadcastNewUser(newUser);
+        chatBroadcaster.broadcastNewUser(newUser);
         return res.send(newUser);
       }
       return res.status(400).send({ message: 'Invalid username' });
     });
 
     /*
-  const usersController = new UserController(socketManager, usersStore);
+  const usersController = new UserController(chatBroadcaster, usersStore);
   ...usersController.createUser(...)
   
   createUser(name: string) {
     const user = this.this.usersStore.addUser(name);
-    this.socketManager.broadcastNewUser(user);
+    this.chatBroadcaster.broadcastNewUser(user);
     console.log('....');
   }
 
   */
 
     /*
-  const chatroomsController = new UserController(socketManager, usersStore);
+  const chatroomsController = new UserController(chatBroadcaster, usersStore);
   ...chatroomsController.createChatroom(...)
   
   createChatroom(name: string) {
     const chatroom = this.chatroomsStore.addChatroom(name);
-    this.socketManager.broadcastNewChatroom(chatroom);
+    this.chatBroadcaster.broadcastNewChatroom(chatroom);
     console.log('....');
   }
   */
