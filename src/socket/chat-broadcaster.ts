@@ -1,24 +1,17 @@
 import socket from 'socket.io';
 
-import { ChatEvent } from '../enum/chat-event.enum';
-import { Chatroom } from '../types/chatroom.type';
-import { Message } from '../types/message.type';
-import { OnlineStatusMessage } from '../types/OnlineStatusMessage';
-import { User } from '../types/user.type';
+import { Chatroom, Message, User } from '../data-store/types';
+import { ChatEvent } from './enums';
+import { UserOnlineStatus } from './types';
 
 // tslint:disable-next-line: interface-name
 export interface ChatBroadcaster {
   sendChatroomMessage: (chatroomId: string, message: Message) => void;
   sendDirectMessage: (clientIds: string[], message: Message) => void;
-  broadcastOnlineStatus: (onlineStatus: OnlineStatusMessage) => void;
+  broadcastOnlineStatus: (onlineStatus: UserOnlineStatus) => void;
   broadcastNewChatroom: (chatroom: Chatroom) => void;
   broadcastNewUser: (user: User) => void;
 }
-
-/* const addUsernameToMessage(message: Message) {
- *   const user = usersStore
- *  }
- */
 
 const createChatroomMessageSender = (io: socket.Server) => (
   chatroomId: string,
@@ -38,7 +31,7 @@ const createDirectMessageSender = (io: socket.Server) => (
 };
 
 const createOnlineStatusBroadcaster = (io: socket.Server) => (
-  onlineStatus: OnlineStatusMessage
+  onlineStatus: UserOnlineStatus
 ) => io.emit(ChatEvent.ONLINE_STATUS_CHANGE, onlineStatus);
 
 const createNewChatroomBroadcaster = (io: socket.Server) => (

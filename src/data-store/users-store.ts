@@ -1,5 +1,4 @@
-import { Message } from '../types/message.type';
-import { User } from '../types/user.type';
+import { Message, User } from './types';
 
 const dummyUsers: { [key: string]: User } = {
   'zzzzz-zzzzz-zzzzz': {

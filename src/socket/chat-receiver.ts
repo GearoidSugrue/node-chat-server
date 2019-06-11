@@ -1,16 +1,12 @@
 import socket, { Socket } from 'socket.io';
 
 import { ChatroomsStore } from '../data-store/chatroom-store';
+import { Message } from '../data-store/types';
 import { UsersStore } from '../data-store/users-store';
-import { ChatEvent } from '../enum/chat-event.enum';
-import { Message } from '../types/message.type';
-import { ChatBroadcaster } from './chat-broadcaster';
-import { SocketUsers } from './socket-users-manager';
 
-// tslint:disable-next-line: interface-name
-export interface ChatReceiver {
-  // todo delete this if it's not needed
-}
+import { ChatBroadcaster } from './chat-broadcaster';
+import { ChatEvent } from './enums';
+import { SocketUsers } from './socket-users';
 
 const createUserLoginHandler = (
   socketUsers: SocketUsers,
@@ -94,13 +90,13 @@ const createMessageUserHandler = (
   );
 };
 
-export function createChatReceiver(
+export function initializeChatSocketReceiver(
   io: socket.Server,
   socketUsers: SocketUsers,
   chatBroadcaster: ChatBroadcaster,
   usersStore: UsersStore,
   chatroomsStore: ChatroomsStore
-): ChatReceiver {
+): void {
   const userLoginHandler = createUserLoginHandler(socketUsers, usersStore);
   const messageChatroomHandler = createMessageChatroomHandler(
     socketUsers,
@@ -113,16 +109,19 @@ export function createChatReceiver(
     usersStore
   );
 
+  // todo investigate socket preappendListener(...) for logging purposes. Perhaps it can have it's own closure?
+
   io.on(ChatEvent.CONNECT, (client: Socket) => {
     // userId and username should come from token so this will need to refactored when auth is implemented!
-    client.on(ChatEvent.LOGIN, userLoginHandler(client)); 
+    client.on(ChatEvent.LOGIN, userLoginHandler(client));
     client.on(ChatEvent.LOGOUT, () =>
       socketUsers.removeUser({ clientId: client.id })
     );
-
+    // Front end will need to login again if a disconnect occurs. This should happen in the background.
+    client.on(ChatEvent.DISCONNECT, () =>
+      socketUsers.removeUser({ clientId: client.id })
+    );
     client.on(ChatEvent.MESSAGE_CHATROOM, messageChatroomHandler(client));
     client.on(ChatEvent.MESSAGE_USER, messageUserHandler(client));
   });
-
-  return {};
 }

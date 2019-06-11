@@ -1,5 +1,4 @@
-import { Chatroom } from '../types/chatroom.type';
-import { Message } from '../types/message.type';
+import { Chatroom, Message } from './types';
 
 const dummyMessages = [
   {
@@ -119,7 +118,7 @@ export class ChatroomsStore {
     }
     const messages = chatroom.messages || [];
 
-    // todo delete me!
+    // todo delete me! Using this to test React hook is updating correctly
     const testData: Message[] = [
       {
         userId: 'fiendishly-handsome-fellow',
@@ -131,7 +130,6 @@ export class ChatroomsStore {
     return [...messages, ...testData];
   }
 
-  // public addChatroom(chatroom: Chatroom): void {
   public addChatroom(name: string): Chatroom {
     const validChatroom = name && typeof name === 'string';
 
