@@ -90,8 +90,19 @@ export class ChatroomsStore {
     console.log('Chatrooms Data Store Initialized!');
   }
 
-  public getChatroom(chatroomId: string): Chatroom {
-    return this.chatrooms[chatroomId] || ({} as Chatroom);
+  public getChatroom(chatroomId: string, requesterUserId: string): Chatroom {
+    const chatroom = this.chatrooms[chatroomId] || ({} as Chatroom);
+    const isUserMember =
+      chatroom.memberIds && chatroom.memberIds.includes(requesterUserId);
+
+    if (!isUserMember) {
+      console.log('Unauthorized attempt to view chatroom', {
+        chatroomId,
+        requesterUserId
+      });
+      return {} as Chatroom; // todo return or throw Error here instead.
+    }
+    return chatroom;
   }
 
   public getChatrooms(): Chatroom[] {
@@ -99,77 +110,54 @@ export class ChatroomsStore {
     return Object.values(this.chatrooms);
   }
 
-  public getChatroomMessages(
-    chatroomId: string,
-    requesterUserId: string
-  ): Message[] {
-    const chatroom = this.getChatroom(chatroomId);
-    const isUserMember =
-      chatroom &&
-      chatroom.memberIds &&
-      chatroom.memberIds.includes(requesterUserId);
-
-    if (!isUserMember) {
-      console.log('Unauthorized attempt to view chatroom messages', {
-        chatroomId,
-        requesterUserId
-      });
-      return [];
-    }
-    const messages = chatroom.messages || [];
-
-    // todo delete me! Using this to test React hook is updating correctly
-    const testData: Message[] = [
-      {
-        userId: 'fiendishly-handsome-fellow',
-        username: 'Gary',
-        message: `Test message in chatroom: ${chatroomId}  -  ${Math.random() *
-          100000000}`
-      }
-    ];
-    return [...messages, ...testData];
-  }
-
-  public addChatroom(name: string): Chatroom {
+  public addChatroom(name: string, userId: string): Chatroom {
     const validChatroom = name && typeof name === 'string';
 
     if (!validChatroom) {
       console.log('Invalid attempt to create Chatroom', { name });
-      return;
+      // return new Error('Invalid chatroom name');
+      return {} as Chatroom;
     }
-
-    const chatroomId = 'todo-generate-chatroomId'; // todo generate uuid here
-    this.chatrooms[chatroomId] = {
+    const chatroomId = 'todo-generate-chatroomId'; // todo generate uuid here. Or will DB implementation provide it?
+    const newChatroom = {
       name,
       chatroomId,
-      memberIds: [], // todo add userId of creator here?
+      memberIds: [userId],
       messages: [] // todo add default user create message here?
     };
-    return this.chatrooms[chatroomId];
+    this.chatrooms[chatroomId] = newChatroom;
+    return newChatroom;
   }
 
   public updateChatroomDetails(
     chatroomId: string,
     updatedDetails: Partial<Chatroom>
   ): Chatroom {
-    const currentDetails = this.chatrooms[chatroomId];
-    const updatedChatroom = {
-      ...currentDetails,
-      ...updatedDetails,
-      chatroomId // since the chatroomId is the chatrooms Map/Object Key I'm preventing it from being changed
-    };
-    this.chatrooms[chatroomId] = updatedChatroom;
-    return updatedChatroom;
+    const currentChatroom = this.chatrooms[chatroomId];
+
+    if (currentChatroom) {
+      const updatedChatroom = {
+        ...currentChatroom,
+        ...updatedDetails,
+        chatroomId // since the chatroomId is the chatrooms Map/Object Key I'm preventing it from being changed
+      };
+      this.chatrooms[chatroomId] = updatedChatroom;
+      return updatedChatroom;
+    }
   }
 
   public addMemberToChatroom(chatroomId: string, userId: string): void {
-    const currentMembersIds = this.getChatroom(chatroomId).memberIds || [];
-    const updatedMembersIds = [...currentMembersIds, userId];
-    this.updateChatroomDetails(chatroomId, { memberIds: updatedMembersIds });
+    const chatroom = this.chatrooms[chatroomId];
+
+    if (chatroom) {
+      const currentMembersIds = (chatroom && chatroom.memberIds) || [];
+      const updatedMembersIds = [...currentMembersIds, userId];
+      this.updateChatroomDetails(chatroomId, { memberIds: updatedMembersIds });
+    }
   }
 
   public addMessageToChatroom(chatroomId: string, message: Message): void {
-    const currentMessages = this.getChatroom(chatroomId).messages || [];
+    const currentMessages = this.chatrooms[chatroomId].messages || [];
     const updatedMessages = [...currentMessages, message];
     this.updateChatroomDetails(chatroomId, { messages: updatedMessages });
   }

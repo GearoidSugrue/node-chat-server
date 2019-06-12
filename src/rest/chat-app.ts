@@ -1,20 +1,79 @@
+import assert, { AssertionError } from 'assert';
 import cors from 'cors';
-import express, { Express, Request, RequestHandler, Response } from 'express';
+import express, {
+  Express,
+  NextFunction,
+  Request,
+  RequestHandler,
+  Response
+} from 'express';
 
 import { ChatroomsStore } from '../data-store/chatroom-store';
 import { Chatroom, Message, User } from '../data-store/types';
 import { UsersStore } from '../data-store/users-store';
 import { ChatBroadcaster } from '../socket/chat-broadcaster';
 import { SocketUsers } from '../socket/socket-users';
-import { Endpoint, HeaderParam, PathParam } from './enums';
+import { HeaderParam, PathParam } from './enums';
+import { endpoints } from './enums/endpoints';
+import { asyncWrapper } from './middleware/async-wrapper';
+import {
+  assertionErrorHandler,
+  defaultErrorHandler
+} from './middleware/error-handlers';
+import { logErrorHandler } from './middleware/error-logger';
 
-// using a dictionary instead of enums as enums can't contain computed values. e.g. `/rooms/:${PathParam.chatroomId}/messages
-const endpoints: Readonly<{ [key in Endpoint]: string }> = {
-  [Endpoint.rooms]: '/rooms',
-  [Endpoint.users]: '/users',
-  [Endpoint.chatroomMessages]: `/rooms/:${PathParam.chatroomId}/messages`,
-  [Endpoint.userMessages]: `/users/:${PathParam.userId}/messages`
-};
+function createGetChatroomHandler(
+  chatroomsStore: ChatroomsStore
+): RequestHandler {
+  return function getChatroomHandler(req: Request, res: Response) {
+    const chatroomId = req.params[PathParam.chatroomId] as string;
+    const requesterUserId = req.header(HeaderParam.RequesterUserId); // todo this should be gotten from token/session
+
+    const chatroom: Chatroom = chatroomsStore.getChatroom(
+      chatroomId,
+      requesterUserId
+    );
+    return res.send(chatroom);
+  };
+}
+
+function createGetChatroomMessagesHandler(
+  chatroomsStore: ChatroomsStore
+): RequestHandler {
+  return function getChatroomMessagesHandler(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
+    const chatroomId = req.params[PathParam.chatroomId] as string;
+    const requesterUserId = req.header(HeaderParam.RequesterUserId); // todo this should be gotten from token/session
+
+    // other validators could be added in future. e.g. length
+    const isValidRequest: boolean = Boolean(chatroomId && requesterUserId);
+    assert.strictEqual(
+      isValidRequest,
+      true,
+      'Invalid chatroomId or requesterUserId'
+      // new AssertionError({ message: 'Invalid chatroomId or requesterUserId' })
+    );
+
+    if (!isValidRequest) {
+      // todo try assert(...)
+      const assertionError = new AssertionError({
+        message: 'Invalid chatroomId or requesterUserId'
+      });
+      // const err = new Error('hello'); // todo delete me!
+      return next(assertionError);
+    }
+
+    const chatroom: Chatroom = chatroomsStore.getChatroom(
+      chatroomId,
+      requesterUserId
+    );
+
+    return res.send(chatroom.messages || []);
+  };
+}
 
 function createGetUsersHandler(
   socketUsers: SocketUsers,
@@ -27,24 +86,6 @@ function createGetUsersHandler(
     });
     const usersWithOnlineStatus = usersStore.getUsers().map(addOnlineStatus);
     return res.send(usersWithOnlineStatus);
-  };
-}
-
-function createGetChatroomMessagesHandler(
-  chatroomsStore: ChatroomsStore
-): RequestHandler {
-  return function getChatroomMessagesHandler(
-    req: Request,
-    res: Response
-  ): void {
-    const chatroomId = req.params[PathParam.chatroomId] as string;
-    const requesterUserId = req.header(HeaderParam.RequesterUserId); // todo this should be gotten from token/session
-
-    const messages: Message[] = chatroomsStore.getChatroomMessages(
-      chatroomId,
-      requesterUserId
-    );
-    res.send(messages);
   };
 }
 
@@ -67,7 +108,11 @@ function createAddChatroomHandler(
 ): RequestHandler {
   return function addChatroomHandler(req: Request, res: Response) {
     const chatroomName = req.body.name as string;
-    const newChatroom: Chatroom = chatroomsStore.addChatroom(chatroomName);
+    const requesterUserId = req.header(HeaderParam.RequesterUserId); // todo this should be gotten from token/session
+    const newChatroom: Chatroom = chatroomsStore.addChatroom(
+      chatroomName,
+      requesterUserId
+    );
 
     if (newChatroom) {
       chatBroadcaster.broadcastNewChatroom(newChatroom);
@@ -100,13 +145,14 @@ export function initializeChatRestApp(
   usersStore: UsersStore,
   chatroomsStore: ChatroomsStore
 ): void {
-  app.use(express.json());
-  app.use(cors());
+  const getChatroomsHandler = (req: Request, res: Response) =>
+    res.send(chatroomsStore.getChatrooms());
 
-  const getUsersHandler = createGetUsersHandler(socketUsers, usersStore);
+  const getChatroomHandler = createGetChatroomHandler(chatroomsStore);
   const getChatroomMessagesHandler = createGetChatroomMessagesHandler(
     chatroomsStore
   );
+  const getUsersHandler = createGetUsersHandler(socketUsers, usersStore);
   const getUserMessagesHandler = createGetUserMessagesHandler(usersStore);
   const addChatroomHandler = createAddChatroomHandler(
     chatBroadcaster,
@@ -114,13 +160,18 @@ export function initializeChatRestApp(
   );
   const addUserHandler = createAddUserHandler(chatBroadcaster, usersStore);
 
-  app.get(endpoints.rooms, (req: Request, res: Response) =>
-    res.send(chatroomsStore.getChatrooms())
-  );
-  app.get(endpoints.users, getUsersHandler);
-  // todo add getChatroom. May not need getChatroomMessages?
-  app.get(endpoints.chatroomMessages, getChatroomMessagesHandler);
-  app.get(endpoints.userMessages, getUserMessagesHandler);
-  app.post(endpoints.rooms, addChatroomHandler);
-  app.post(endpoints.users, addUserHandler);
+  app.get(endpoints.chatrooms, asyncWrapper(getChatroomsHandler));
+  app.get(endpoints.chatroom, asyncWrapper(getChatroomHandler));
+  app.get(endpoints.chatroomMessages, asyncWrapper(getChatroomMessagesHandler));
+  app.get(endpoints.users, asyncWrapper(getUsersHandler));
+  app.get(endpoints.userMessages, asyncWrapper(getUserMessagesHandler));
+  app.post(endpoints.chatrooms, asyncWrapper(addChatroomHandler));
+  app.post(endpoints.users, asyncWrapper(addUserHandler));
+
+  app.use(express.json());
+  app.use(cors());
+
+  app.use(logErrorHandler);
+  app.use(assertionErrorHandler);
+  app.use(defaultErrorHandler);
 }
