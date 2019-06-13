@@ -1,12 +1,9 @@
 import socket, { Socket } from 'socket.io';
 
-import { ChatroomsStore } from '../data-store/chatroom-store';
+import { ChatroomsStore, UsersStore } from '../data-store';
 import { Message } from '../data-store/types';
-import { UsersStore } from '../data-store/users-store';
-
-import { ChatBroadcaster } from './chat-broadcaster';
 import { ChatEvent } from './enums';
-import { SocketUsers } from './socket-users';
+import { ChatBroadcaster, SocketUsers } from './interfaces';
 
 const createUserLoginHandler = (
   socketUsers: SocketUsers,

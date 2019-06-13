@@ -2,19 +2,16 @@ import assert from 'assert';
 import cors from 'cors';
 import express, { Express, Request, RequestHandler, Response } from 'express';
 
-import { ChatroomsStore } from '../data-store/chatroom-store';
+import { ChatroomsStore, UsersStore } from '../data-store';
 import { Chatroom, Message, User } from '../data-store/types';
-import { UsersStore } from '../data-store/users-store';
-import { ChatBroadcaster } from '../socket/chat-broadcaster';
-import { SocketUsers } from '../socket/socket-users';
-import { HeaderParam, PathParam } from './enums';
-import { endpoints } from './enums/endpoints';
-import { asyncWrapper } from './middleware/async-wrapper';
+import { ChatBroadcaster, SocketUsers } from '../socket/interfaces';
+import { endpoints, HeaderParam, PathParam } from './enums';
 import {
   assertionErrorHandler,
-  defaultErrorHandler
-} from './middleware/error-handlers';
-import { logErrorHandler } from './middleware/error-logger';
+  asyncWrapper,
+  defaultErrorHandler,
+  logErrorHandler
+} from './middleware';
 
 function createGetChatroomHandler(
   chatroomsStore: ChatroomsStore

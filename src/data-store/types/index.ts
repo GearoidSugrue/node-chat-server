@@ -1,3 +1,3 @@
-export { Chatroom } from './chatroom.type';
-export { Message } from './message.type';
-export { User } from './user.type';
+export * from './chatroom.type';
+export * from './message.type';
+export * from './user.type';

@@ -1,18 +1,5 @@
-import { ChatBroadcaster } from './chat-broadcaster';
-
-// tslint:disable-next-line: interface-name
-export interface SocketUsers {
-  addUser: (socketUser: SocketUser) => void;
-  removeUser: (socketUserDetails: Partial<SocketUser>) => void;
-  getUser: (socketUserDetails: Partial<SocketUser>) => SocketUser;
-  getUserOnlineStatus: (userId: string) => boolean;
-}
-
-export type SocketUser = Readonly<{
-  userId: string;
-  username: string;
-  clientId: string;
-}>;
+import { ChatBroadcaster, SocketUsers } from './interfaces';
+import { SocketUser } from './types';
 
 type SocketUsersMap = {
   [userId: string]: SocketUser;

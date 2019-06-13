@@ -3,15 +3,14 @@ import http, { Server } from 'http';
 import socket from 'socket.io';
 
 import { initializeChatServer } from './chat-server';
-import { ChatroomsStore } from './data-store/chatroom-store';
-import { UsersStore } from './data-store/users-store';
-import { initializeChatRestApp } from './rest/chat-app';
+import { ChatroomsStore, UsersStore } from './data-store';
+import { initializeChatRestApp } from './rest';
 import {
-  ChatBroadcaster,
-  createChatBroadcaster
-} from './socket/chat-broadcaster';
-import { initializeChatSocketReceiver } from './socket/chat-receiver';
-import { createSocketUsers, SocketUsers } from './socket/socket-users';
+  createChatBroadcaster,
+  createSocketUsers,
+  initializeChatSocketReceiver
+} from './socket';
+import { ChatBroadcaster, SocketUsers } from './socket/interfaces';
 
 const app: Express = express();
 const server: Server = http.createServer(app);
