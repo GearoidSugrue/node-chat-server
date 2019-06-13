@@ -1,6 +1,6 @@
 import express, { Express } from 'express';
 import http, { Server } from 'http';
-import socket from 'socket.io';
+import socket, { ServerOptions } from 'socket.io';
 
 import { initializeChatServer } from './chat-server';
 import { ChatroomsStore, UsersStore } from './data-store';
@@ -19,7 +19,10 @@ const server: Server = http.createServer(app);
 const usersStore = new UsersStore();
 const chatroomsStore = new ChatroomsStore();
 
-const io = socket(server);
+const socketOptions: ServerOptions = {
+  cookie: false
+};
+const io = socket(server, socketOptions);
 
 const chatBroadcaster: ChatBroadcaster = createChatBroadcaster(io);
 const socketUsers: SocketUsers = createSocketUsers(chatBroadcaster); // todo pass to express router

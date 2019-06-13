@@ -156,9 +156,27 @@ export class ChatroomsStore {
     }
   }
 
-  public addMessageToChatroom(chatroomId: string, message: Message): void {
-    const currentMessages = this.chatrooms[chatroomId].messages || [];
-    const updatedMessages = [...currentMessages, message];
-    this.updateChatroomDetails(chatroomId, { messages: updatedMessages });
+  /**
+   * Adds a message to a chatroom.
+   *
+   * Returns true if message was successfully added to chatroom.
+   * Returns false if it fails.
+   *
+   * @param chatroomId
+   * @param message
+   */
+  public addMessageToChatroom(chatroomId: string, message: Message): boolean {
+    const chatroom = this.chatrooms[chatroomId];
+
+    if (chatroom) {
+      const currentMessages = chatroom.messages || [];
+      const updatedMessages = [...currentMessages, message];
+      const updatedChatroom = this.updateChatroomDetails(chatroomId, {
+        messages: updatedMessages
+      });
+
+      return Boolean(updatedChatroom);
+    }
+    return false;
   }
 }

@@ -14,6 +14,7 @@ const createUserLoginHandler = (
   client.join(chatroomIds || []);
 };
 
+// todo investigate if send messages should be done through POST. REST has advantage of returning 400s, etc.
 const createMessageChatroomHandler = (
   socketUsers: SocketUsers,
   chatBroadcaster: ChatBroadcaster,
@@ -23,6 +24,7 @@ const createMessageChatroomHandler = (
 
   const validMessageAttempt = userId && chatroomId;
 
+  // todo investigate use of assert here and investigate error handlers for it
   if (!validMessageAttempt) {
     console.warn(`Invalid attempt to message chatroom:`, {
       chatroomId,
@@ -38,15 +40,22 @@ const createMessageChatroomHandler = (
     username,
     message
   };
-  chatBroadcaster.sendChatroomMessage(chatroomId, newMessage);
-
-  // todo chatroomsStore needs to be updated with the message!
-  // something like: chatroomStore.addMessage(chatroomId, newMessage)
-  console.log(
-    `${username} (${userId}) messaged chatroom ${chatroomId}: ${message}`
+  const addMessageResult = chatroomStore.addMessageToChatroom(
+    chatroomId,
+    newMessage
   );
+
+  if (addMessageResult) {
+    chatBroadcaster.sendChatroomMessage(chatroomId, newMessage);
+    console.log(
+      `${username} (${userId}) messaged chatroom ${chatroomId}: ${message}`
+    );
+  } else {
+    console.log('Failed to add message to chatroom');
+  }
 };
 
+// todo investigate if send messages should be done through POST. REST has advantage of returning 400s, etc.
 const createMessageUserHandler = (
   socketUsers: SocketUsers,
   chatBroadcaster: ChatBroadcaster,
@@ -72,19 +81,35 @@ const createMessageUserHandler = (
     username: fromSocketUser.username,
     userId: fromSocketUser.userId
   };
-  chatBroadcaster.sendDirectMessage(
-    [toSocketUser.clientId, fromSocketUser.clientId],
+
+  // This is super hacky! Messages are currently stored on the user's themselves,
+  // so I have to add the new message to both users.
+  // This will be replaced when implementing a proper DB implementation!
+  const addMessageToUser = usersStore.addMessageToUser(
+    toSocketUser.userId,
+    fromSocketUser.userId,
+    newMessage
+  );
+  const addMessageToFromUser = usersStore.addMessageToUser(
+    fromSocketUser.userId,
+    toSocketUser.userId,
     newMessage
   );
 
-  // todo add message to message history
-  // usersStore.updateUserDetails(...) // or something like: messagesController.addMessage(...)
+  if (addMessageToUser && addMessageToFromUser) {
+    chatBroadcaster.sendDirectMessage(
+      [toSocketUser.clientId, fromSocketUser.clientId],
+      newMessage
+    );
 
-  console.log(
-    `${fromSocketUser.username} messaged user ${
-      toSocketUser.username
-    }: ${message}`
-  );
+    console.log(
+      `${fromSocketUser.username} messaged user ${
+        toSocketUser.username
+      }: ${message}`
+    );
+  } else {
+    console.log('Failed to add message to users');
+  }
 };
 
 export function initializeChatSocketReceiver(
@@ -107,14 +132,13 @@ export function initializeChatSocketReceiver(
   );
 
   // todo investigate socket preappendListener(...) for logging purposes. Perhaps it can have it's own closure?
-
   io.on(ChatEvent.CONNECT, (client: Socket) => {
     // userId and username should come from token so this will need to refactored when auth is implemented!
     client.on(ChatEvent.LOGIN, userLoginHandler(client));
     client.on(ChatEvent.LOGOUT, () =>
       socketUsers.removeUser({ clientId: client.id })
     );
-    // Front end will need to login again if a disconnect occurs. This should happen in the background.
+    // Front-end will need to login again if a disconnect occurs. This should happen in the background.
     client.on(ChatEvent.DISCONNECT, () =>
       socketUsers.removeUser({ clientId: client.id })
     );

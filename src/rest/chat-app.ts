@@ -58,12 +58,20 @@ function createGetUsersHandler(
   usersStore: UsersStore
 ): RequestHandler {
   return function getUsersHandler(req: Request, res: Response) {
+    const removeMessages = (user: User) => {
+      const { messages, ...partialUser } = user;
+      return partialUser;
+    };
     const addOnlineStatus = (user: User): User => ({
       ...user,
       online: socketUsers.getUserOnlineStatus(user.userId)
     });
-    const usersWithOnlineStatus = usersStore.getUsers().map(addOnlineStatus);
-    return res.send(usersWithOnlineStatus);
+
+    const formattedUsers = usersStore
+      .getUsers()
+      .map(removeMessages) // removing messages from users until proper DB implementation is in place. Then they'll be no need for this.
+      .map(addOnlineStatus);
+    return res.send(formattedUsers);
   };
 }
 

@@ -112,27 +112,33 @@ export class UsersStore {
     return updatedUser;
   }
 
+  /**
+   * Adds a message to the specified user.
+   * Returns true if successful. False if failure.
+   *
+   * @param userId recipient user's userId
+   * @param fromUserId sender's userId
+   * @param message the message to add
+   */
   public addMessageToUser(
     userId: string,
     fromUserId: string,
     message: Message
-  ): void {
-    const isValid = fromUserId && userId && this.users[userId];
+  ): boolean {
+    const toUser = userId && this.users[userId];
+    const fromUser = fromUserId && this.users[fromUserId];
 
-    if (!isValid) {
-      console.log('Invalid attempt to add message:', {
-        userId,
-        fromUserId,
-        message
-      });
-      return;
+    if (toUser && fromUser) {
+      const currentUserMessages = toUser.messages[fromUserId] || [];
+      const updatedUserMessages = [...currentUserMessages, message];
+      this.users[userId].messages[fromUserId] = updatedUserMessages;
+      return true;
     }
-    const currentUserMessages = this.users[userId].messages[fromUserId];
-    const updatedUserMessages = [...currentUserMessages, message];
-    this.users[userId].messages[fromUserId] = updatedUserMessages;
-  }
-
-  public doesUserExist(userId: string): boolean {
-    return Boolean(this.getUser(userId));
+    console.log('Invalid attempt to add user message:', {
+      userId,
+      fromUserId,
+      message
+    });
+    return false;
   }
 }
