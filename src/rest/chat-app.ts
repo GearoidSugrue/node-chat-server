@@ -1,12 +1,6 @@
-import assert, { AssertionError } from 'assert';
+import assert from 'assert';
 import cors from 'cors';
-import express, {
-  Express,
-  NextFunction,
-  Request,
-  RequestHandler,
-  Response
-} from 'express';
+import express, { Express, Request, RequestHandler, Response } from 'express';
 
 import { ChatroomsStore } from '../data-store/chatroom-store';
 import { Chatroom, Message, User } from '../data-store/types';
@@ -26,8 +20,13 @@ function createGetChatroomHandler(
   chatroomsStore: ChatroomsStore
 ): RequestHandler {
   return function getChatroomHandler(req: Request, res: Response) {
-    const chatroomId = req.params[PathParam.chatroomId] as string;
-    const requesterUserId = req.header(HeaderParam.RequesterUserId); // todo this should be gotten from token/session
+    const chatroomId: string = req.params[PathParam.chatroomId];
+    const requesterUserId: string = req.header(HeaderParam.RequesterUserId); // todo this should be gotten from token/session
+    const hasValidArgs: boolean = Boolean(chatroomId && requesterUserId); // other validators could be added in future. e.g. length
+
+    if (!hasValidArgs) {
+      assert.fail('Invalid chatroomId (path) or RequesterUserId (header)');
+    }
 
     const chatroom: Chatroom = chatroomsStore.getChatroom(
       chatroomId,
@@ -40,37 +39,19 @@ function createGetChatroomHandler(
 function createGetChatroomMessagesHandler(
   chatroomsStore: ChatroomsStore
 ): RequestHandler {
-  return function getChatroomMessagesHandler(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ) {
-    const chatroomId = req.params[PathParam.chatroomId] as string;
-    const requesterUserId = req.header(HeaderParam.RequesterUserId); // todo this should be gotten from token/session
+  return function getChatroomMessagesHandler(req: Request, res: Response) {
+    const chatroomId: string = req.params[PathParam.chatroomId];
+    const requesterUserId: string = req.header(HeaderParam.RequesterUserId);
+    const hasValidArgs: boolean = Boolean(chatroomId && requesterUserId);
 
-    // other validators could be added in future. e.g. length
-    const isValidRequest: boolean = Boolean(chatroomId && requesterUserId);
-    assert.strictEqual(
-      isValidRequest,
-      true,
-      'Invalid chatroomId or requesterUserId'
-      // new AssertionError({ message: 'Invalid chatroomId or requesterUserId' })
-    );
-
-    if (!isValidRequest) {
-      // todo try assert(...)
-      const assertionError = new AssertionError({
-        message: 'Invalid chatroomId or requesterUserId'
-      });
-      // const err = new Error('hello'); // todo delete me!
-      return next(assertionError);
+    if (!hasValidArgs) {
+      assert.fail('Invalid chatroomId (path) or RequesterUserId (header)');
     }
 
     const chatroom: Chatroom = chatroomsStore.getChatroom(
       chatroomId,
       requesterUserId
     );
-
     return res.send(chatroom.messages || []);
   };
 }
@@ -91,8 +72,13 @@ function createGetUsersHandler(
 
 function createGetUserMessagesHandler(usersStore: UsersStore): RequestHandler {
   return function getUserMessagesHandler(req: Request, res: Response) {
-    const userId = req.params[PathParam.userId] as string;
-    const requesterUserId = req.header(HeaderParam.RequesterUserId); // todo this should be gotten from token/session
+    const userId: string = req.params[PathParam.userId] as string;
+    const requesterUserId: string = req.header(HeaderParam.RequesterUserId);
+    const hasValidArgs: boolean = Boolean(userId && requesterUserId);
+
+    if (!hasValidArgs) {
+      assert.fail('Invalid userId (path) or RequesterUserId (header)');
+    }
 
     const messages: Message[] = usersStore.getUserMessages(
       userId,
@@ -107,8 +93,14 @@ function createAddChatroomHandler(
   chatroomsStore: ChatroomsStore
 ): RequestHandler {
   return function addChatroomHandler(req: Request, res: Response) {
-    const chatroomName = req.body.name as string;
-    const requesterUserId = req.header(HeaderParam.RequesterUserId); // todo this should be gotten from token/session
+    const chatroomName: string = req.body.name;
+    const requesterUserId = req.header(HeaderParam.RequesterUserId);
+    const hasValidArgs: boolean = Boolean(chatroomName && requesterUserId);
+
+    if (!hasValidArgs) {
+      assert.fail('Invalid name (body) or RequesterUserId (header)');
+    }
+
     const newChatroom: Chatroom = chatroomsStore.addChatroom(
       chatroomName,
       requesterUserId
@@ -118,7 +110,6 @@ function createAddChatroomHandler(
       chatBroadcaster.broadcastNewChatroom(newChatroom);
       return res.status(201).send(newChatroom);
     }
-    return res.status(400).send({ message: 'Invalid chatroom name' });
   };
 }
 
@@ -127,14 +118,19 @@ function createAddUserHandler(
   usersStore: UsersStore
 ): RequestHandler {
   return function addUserHandler(req: Request, res: Response) {
-    const username = req.body.username as string;
+    const username: string = req.body.username;
+    const hasValidArgs: boolean = Boolean(username);
+
+    if (!hasValidArgs) {
+      assert.fail('Invalid username (body)');
+    }
+
     const newUser: User = usersStore.addUser(username);
 
     if (newUser) {
       chatBroadcaster.broadcastNewUser(newUser);
       return res.status(201).send(newUser);
     }
-    return res.status(400).send({ message: 'Invalid username' });
   };
 }
 
@@ -145,6 +141,10 @@ export function initializeChatRestApp(
   usersStore: UsersStore,
   chatroomsStore: ChatroomsStore
 ): void {
+  app.use(express.json());
+  app.use(cors());
+
+  // todo might split up REST routes + handlers from the error and other middleware
   const getChatroomsHandler = (req: Request, res: Response) =>
     res.send(chatroomsStore.getChatrooms());
 
@@ -167,9 +167,6 @@ export function initializeChatRestApp(
   app.get(endpoints.userMessages, asyncWrapper(getUserMessagesHandler));
   app.post(endpoints.chatrooms, asyncWrapper(addChatroomHandler));
   app.post(endpoints.users, asyncWrapper(addUserHandler));
-
-  app.use(express.json());
-  app.use(cors());
 
   app.use(logErrorHandler);
   app.use(assertionErrorHandler);
