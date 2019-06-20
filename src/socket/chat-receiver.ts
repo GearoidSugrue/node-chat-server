@@ -61,14 +61,13 @@ const createMessageUserHandler = (
   chatBroadcaster: ChatBroadcaster,
   usersStore: UsersStore
 ) => (client: Socket) => ({ toUserId, message }) => {
-  const toSocketUser = socketUsers.getUser({ userId: toUserId });
   const fromSocketUser = socketUsers.getUser({ clientId: client.id });
 
-  const validMessageAttempt = message && toSocketUser && fromSocketUser;
+  const validMessageAttempt = message && toUserId && fromSocketUser;
 
   if (!validMessageAttempt) {
     console.warn(`Invalid attempt to message user`, {
-      toSocketUser,
+      toUserId,
       fromSocketUser,
       message
     });
@@ -86,25 +85,27 @@ const createMessageUserHandler = (
   // so I have to add the new message to both users.
   // This will be replaced when implementing a proper DB implementation!
   const addMessageToUser = usersStore.addMessageToUser(
-    toSocketUser.userId,
+    toUserId,
     fromSocketUser.userId,
     newMessage
   );
   const addMessageToFromUser = usersStore.addMessageToUser(
     fromSocketUser.userId,
-    toSocketUser.userId,
+    toUserId,
     newMessage
   );
 
   if (addMessageToUser && addMessageToFromUser) {
-    chatBroadcaster.sendDirectMessage(
-      [toSocketUser.clientId, fromSocketUser.clientId],
-      newMessage
-    );
+    const toSocketUser = socketUsers.getUser({ userId: toUserId }); // if the other user is not logged, this will be {}
+
+    const clientIds = Boolean(toSocketUser)
+      ? [toSocketUser.clientId, fromSocketUser.clientId]
+      : [fromSocketUser.clientId];
+    chatBroadcaster.sendDirectMessage(clientIds, newMessage);
 
     console.log(
       `${fromSocketUser.username} messaged user ${
-        toSocketUser.username
+        Boolean(toSocketUser) ? toSocketUser.username : toUserId
       }: ${message}`
     );
   } else {
