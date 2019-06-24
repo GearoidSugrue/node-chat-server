@@ -5,7 +5,8 @@ enum Endpoint {
   chatroom = 'chatroom',
   chatroomMessages = 'chatroomMessages',
   users = 'users',
-  userMessages = 'userMessages'
+  userMessages = 'userMessages',
+  userChatrooms = 'userChatrooms'
 }
 
 // using a dictionary instead of enums as enums can't contain computed values. e.g. `/rooms/:${PathParam.chatroomId}/messages
@@ -14,5 +15,6 @@ export const endpoints: Readonly<{ [key in Endpoint]: string }> = {
   [Endpoint.chatroom]: `/rooms/:${PathParam.chatroomId}`,
   [Endpoint.chatroomMessages]: `/rooms/:${PathParam.chatroomId}/messages`,
   [Endpoint.users]: '/users',
-  [Endpoint.userMessages]: `/users/:${PathParam.userId}/messages`
+  [Endpoint.userMessages]: `/users/:${PathParam.userId}/messages`,
+  [Endpoint.userChatrooms]: `/users/:${PathParam.userId}/rooms`
 };

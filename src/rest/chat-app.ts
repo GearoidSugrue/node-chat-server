@@ -13,6 +13,15 @@ import {
   logErrorHandler
 } from './middleware';
 
+function createGetChatroomsHandler(
+  chatroomsStore: ChatroomsStore
+): RequestHandler {
+  return async function getChatroomHandler(req: Request, res: Response) {
+    const chatrooms = await chatroomsStore.getChatrooms();
+    return res.send(chatrooms);
+  };
+}
+
 function createGetChatroomHandler(
   chatroomsStore: ChatroomsStore
 ): RequestHandler {
@@ -57,7 +66,7 @@ function createGetUsersHandler(
   socketUsers: SocketUsers,
   usersStore: UsersStore
 ): RequestHandler {
-  return function getUsersHandler(req: Request, res: Response) {
+  return async function getUsersHandler(req: Request, res: Response) {
     const removeMessages = (user: User) => {
       const { messages, ...partialUser } = user;
       return partialUser;
@@ -67,8 +76,8 @@ function createGetUsersHandler(
       online: socketUsers.getUserOnlineStatus(user.userId)
     });
 
-    const formattedUsers = usersStore
-      .getUsers()
+    const users = await usersStore.getUsers();
+    const formattedUsers = users
       .map(removeMessages) // removing messages from users until proper DB implementation is in place. Then they'll be no need for this.
       .map(addOnlineStatus);
     return res.send(formattedUsers);
@@ -76,16 +85,17 @@ function createGetUsersHandler(
 }
 
 function createGetUserMessagesHandler(usersStore: UsersStore): RequestHandler {
-  return function getUserMessagesHandler(req: Request, res: Response) {
+  return async function getUserMessagesHandler(req: Request, res: Response) {
     const userId: string = req.params[PathParam.userId] as string;
     const requesterUserId: string = req.header(HeaderParam.RequesterUserId);
+
     const hasValidArgs: boolean = Boolean(userId && requesterUserId);
 
     if (!hasValidArgs) {
       assert.fail('Invalid userId (path) or RequesterUserId (header)');
     }
 
-    const messages: Message[] = usersStore.getUserMessages(
+    const messages: Message[] = await usersStore.getUserMessages(
       userId,
       requesterUserId
     );
@@ -95,26 +105,51 @@ function createGetUserMessagesHandler(usersStore: UsersStore): RequestHandler {
 
 function createAddChatroomHandler(
   chatBroadcaster: ChatBroadcaster,
+  usersStore: UsersStore,
   chatroomsStore: ChatroomsStore
 ): RequestHandler {
-  return function addChatroomHandler(req: Request, res: Response) {
+  return async function addChatroomHandler(req: Request, res: Response) {
     const chatroomName: string = req.body.name;
+    const memberIds: string[] = req.body.memberIds;
     const requesterUserId = req.header(HeaderParam.RequesterUserId);
-    const hasValidArgs: boolean = Boolean(chatroomName && requesterUserId);
 
-    if (!hasValidArgs) {
-      assert.fail('Invalid name (body) or RequesterUserId (header)');
-    }
-
-    const newChatroom: Chatroom = chatroomsStore.addChatroom(
-      chatroomName,
-      requesterUserId
+    const hasValidArgs: boolean = Boolean(
+      chatroomName && memberIds && requesterUserId
     );
 
-    if (newChatroom) {
-      chatBroadcaster.broadcastNewChatroom(newChatroom);
-      return res.status(201).send(newChatroom);
+    if (!hasValidArgs) {
+      assert.fail(
+        'Invalid name (body) or RequesterUserId (header) or memberIds (body)'
+      );
     }
+
+    const newChatroom: Chatroom = await chatroomsStore.createChatroom(
+      chatroomName,
+      requesterUserId,
+      memberIds
+    );
+
+    const { username }: User = await usersStore.getUser(requesterUserId);
+
+    const createdChatroomMessage: Message = {
+      username,
+      chatroomId: newChatroom.chatroomId,
+      userId: requesterUserId,
+      message: `${username} has created #${chatroomName}!`,
+      timestamp: new Date().toISOString()
+    };
+
+    chatBroadcaster.broadcastNewChatroom(newChatroom);
+    await chatroomsStore.addMessageToChatroom(
+      newChatroom.chatroomId,
+      createdChatroomMessage
+    );
+    chatBroadcaster.sendChatroomMessage(
+      newChatroom.chatroomId,
+      createdChatroomMessage
+    );
+
+    return res.status(201).send(newChatroom);
   };
 }
 
@@ -139,6 +174,48 @@ function createAddUserHandler(
   };
 }
 
+function createAddUserToChatroomHandler(
+  chatBroadcaster: ChatBroadcaster,
+  usersStore: UsersStore,
+  chatroomsStore: ChatroomsStore
+): RequestHandler {
+  return async function addUserToChatroomHandler(req: Request, res: Response) {
+    const userId: string = req.params[PathParam.userId] as string;
+    const chatroomsIds: string[] = req.body.chatroomIds;
+
+    const hasUserId = Boolean(userId);
+    const hasChatroomIds = Boolean(chatroomsIds && chatroomsIds.length);
+
+    if (!hasUserId || !hasChatroomIds) {
+      assert.fail('Invalid userId (path) and/or chatroomIds (body');
+    }
+
+    const [updatedChatrooms] = await Promise.all([
+      chatroomsStore.addMemberToChatrooms(chatroomsIds, userId),
+      usersStore.addUserToChatrooms(userId, chatroomsIds)
+    ]);
+
+    const { username }: User = await usersStore.getUser(userId);
+
+    await Promise.all(
+      updatedChatrooms.map(({ chatroomId }: Chatroom) => {
+        const newMemberMessage: Message = {
+          userId,
+          username,
+          chatroomId,
+          message: `${username} has joined the chat!`,
+          timestamp: new Date().toISOString()
+        };
+        chatroomsStore.addMessageToChatroom(chatroomId, newMemberMessage);
+        chatBroadcaster.sendChatroomMessage(chatroomId, newMemberMessage);
+        // chatBroadcaster.broadcastNewChatroomMember();
+      })
+    );
+
+    return res.send({ message: 'Success' });
+  };
+}
+
 export function initializeChatRestApp(
   app: Express,
   socketUsers: SocketUsers,
@@ -150,9 +227,8 @@ export function initializeChatRestApp(
   app.use(cors());
 
   // todo might split up REST routes + handlers from the error and other middleware
-  const getChatroomsHandler = (req: Request, res: Response) =>
-    res.send(chatroomsStore.getChatrooms());
 
+  const getChatroomsHandler = createGetChatroomsHandler(chatroomsStore);
   const getChatroomHandler = createGetChatroomHandler(chatroomsStore);
   const getChatroomMessagesHandler = createGetChatroomMessagesHandler(
     chatroomsStore
@@ -161,9 +237,15 @@ export function initializeChatRestApp(
   const getUserMessagesHandler = createGetUserMessagesHandler(usersStore);
   const addChatroomHandler = createAddChatroomHandler(
     chatBroadcaster,
+    usersStore,
     chatroomsStore
   );
   const addUserHandler = createAddUserHandler(chatBroadcaster, usersStore);
+  const addUserToChatroomsHandler = createAddUserToChatroomHandler(
+    chatBroadcaster,
+    usersStore,
+    chatroomsStore
+  );
 
   app.get(endpoints.chatrooms, asyncWrapper(getChatroomsHandler));
   app.get(endpoints.chatroom, asyncWrapper(getChatroomHandler));
@@ -172,6 +254,7 @@ export function initializeChatRestApp(
   app.get(endpoints.userMessages, asyncWrapper(getUserMessagesHandler));
   app.post(endpoints.chatrooms, asyncWrapper(addChatroomHandler));
   app.post(endpoints.users, asyncWrapper(addUserHandler));
+  app.put(endpoints.userChatrooms, asyncWrapper(addUserToChatroomsHandler));
 
   app.use(logErrorHandler);
   app.use(assertionErrorHandler);

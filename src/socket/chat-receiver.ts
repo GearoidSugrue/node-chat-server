@@ -8,10 +8,15 @@ import { ChatBroadcaster, SocketUsers } from './interfaces';
 const createUserLoginHandler = (
   socketUsers: SocketUsers,
   usersStore: UsersStore
-) => (client: Socket) => ({ userId, username }) => {
-  socketUsers.addUser({ userId, username, clientId: client.id });
-  const { chatroomIds } = usersStore.getUser(userId);
-  client.join(chatroomIds || []);
+) => (client: Socket) => async ({ userId, username }) => {
+  try {
+    const { chatroomIds } = await usersStore.getUser(userId);
+    socketUsers.addUser({ userId, username, clientId: client.id });
+    client.join(chatroomIds || []);
+  } catch (error) {
+    // todo implement proper error handling...
+    console.log('Failed to login user...');
+  }
 };
 
 // todo investigate if send messages should be done through POST. REST has advantage of returning 400s, etc.
@@ -19,7 +24,7 @@ const createMessageChatroomHandler = (
   socketUsers: SocketUsers,
   chatBroadcaster: ChatBroadcaster,
   chatroomStore: ChatroomsStore
-) => (client: Socket) => ({ chatroomId, message }) => {
+) => (client: Socket) => async ({ chatroomId, message }) => {
   const { userId, username } = socketUsers.getUser({ clientId: client.id });
 
   const validMessageAttempt = userId && chatroomId;
@@ -38,20 +43,19 @@ const createMessageChatroomHandler = (
     userId,
     chatroomId,
     username,
-    message
+    message,
+    timestamp: new Date().toISOString()
   };
-  const addMessageResult = chatroomStore.addMessageToChatroom(
-    chatroomId,
-    newMessage
-  );
 
-  if (addMessageResult) {
+  try {
+    await chatroomStore.addMessageToChatroom(chatroomId, newMessage);
+
     chatBroadcaster.sendChatroomMessage(chatroomId, newMessage);
     console.log(
       `${username} (${userId}) messaged chatroom ${chatroomId}: ${message}`
     );
-  } else {
-    console.log('Failed to add message to chatroom');
+  } catch (error) {
+    console.log('Failed to add message to chatroom', error);
   }
 };
 
@@ -78,7 +82,8 @@ const createMessageUserHandler = (
     message,
     toUserId,
     username: fromSocketUser.username,
-    userId: fromSocketUser.userId
+    userId: fromSocketUser.userId,
+    timestamp: new Date().toISOString()
   };
 
   // This is super hacky! Messages are currently stored on the user's themselves,

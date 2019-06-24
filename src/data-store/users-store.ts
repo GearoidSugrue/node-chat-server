@@ -1,3 +1,4 @@
+import assert from 'assert';
 import { Message, User } from './types';
 
 const dummyUsers: { [key: string]: User } = {
@@ -18,7 +19,8 @@ const dummyUsers: { [key: string]: User } = {
         {
           userId: 'ddddd-eeeee-fffff',
           username: 'Nathaniel',
-          message: 'Hello!'
+          message: 'Hello!',
+          timestamp: '2019-06-11T13:48:00.000Z'
         }
       ]
     }
@@ -56,12 +58,15 @@ export class UsersStore {
     console.log('Users Data Store Initialized!');
   }
 
-  public getUser(userId: string): User {
+  public async getUser(userId: string): Promise<User> {
     return this.users[userId] || ({} as User);
   }
 
-  public getUserMessages(userId: string, requestingUserId: string): Message[] {
-    const user = this.getUser(userId);
+  public async getUserMessages(
+    userId: string,
+    requestingUserId: string
+  ): Promise<Message[]> {
+    const user = await this.getUser(userId);
 
     if (!user || !requestingUserId) {
       console.log('Invalid attempt to get user messages', {
@@ -75,7 +80,7 @@ export class UsersStore {
     return userMessages[requestingUserId] || [];
   }
 
-  public getUsers(): User[] {
+  public async getUsers(): Promise<User[]> {
     console.log('Getting all users');
     return Object.values(this.users);
   }
@@ -96,20 +101,6 @@ export class UsersStore {
       messages: {}
     };
     return this.users[userId];
-  }
-
-  public updateUserDetails(
-    userId: string,
-    updatedDetails: Partial<User>
-  ): User {
-    const currentDetails = this.users[userId];
-    const updatedUser = {
-      ...currentDetails,
-      ...updatedDetails,
-      userId // since the userId is the users Map/Object Key I'm preventing it from being changed
-    };
-    this.users[userId] = updatedUser;
-    return updatedUser;
   }
 
   /**
@@ -140,5 +131,40 @@ export class UsersStore {
       message
     });
     return false;
+  }
+
+  public async addUserToChatrooms(
+    userId: string,
+    chatroomIds: string[]
+  ): Promise<User> {
+    if (!userId || !chatroomIds) {
+      // Promise.rejects()
+      // todo should assertions be done in express layer or business logic
+      assert.fail('Invalid userId and/or chatroomIds');
+    }
+
+    const user: User = await this.getUser(userId);
+
+    const currentChatroomIds = (user && user.chatroomIds) || [];
+    const updatedChatroomIds: string[] = [
+      ...new Set([...currentChatroomIds, ...chatroomIds])
+    ];
+    return this.updateUserDetails(user.userId, {
+      chatroomIds: updatedChatroomIds
+    });
+  }
+
+  public updateUserDetails(
+    userId: string,
+    updatedDetails: Partial<User>
+  ): User {
+    const currentDetails = this.users[userId];
+    const updatedUser = {
+      ...currentDetails,
+      ...updatedDetails,
+      userId // since the userId is the users Map/Object Key I'm preventing it from being changed
+    };
+    this.users[userId] = updatedUser;
+    return updatedUser;
   }
 }
