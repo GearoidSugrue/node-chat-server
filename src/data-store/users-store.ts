@@ -59,22 +59,29 @@ export class UsersStore {
   }
 
   public async getUser(userId: string): Promise<User> {
-    return this.users[userId] || ({} as User);
+    assert.ok(Boolean(userId), "argument 'userId' is missing");
+
+    const user: User = this.users[userId];
+
+    if (!user) {
+      const error = new Error('User Not Found');
+      error.name = 'Argument Error';
+      throw error;
+    }
+    return user;
   }
 
   public async getUserMessages(
     userId: string,
     requestingUserId: string
   ): Promise<Message[]> {
-    const user = await this.getUser(userId);
+    assert.ok(Boolean(userId), "argument 'userId' is missing");
+    assert.ok(
+      Boolean(requestingUserId),
+      "argument 'requestingUserId' is missing"
+    );
 
-    if (!user || !requestingUserId) {
-      console.log('Invalid attempt to get user messages', {
-        userId,
-        requestingUserId
-      });
-      return [];
-    }
+    const user = await this.getUser(userId);
 
     const userMessages = user.messages || {};
     return userMessages[requestingUserId] || [];
@@ -85,15 +92,15 @@ export class UsersStore {
     return Object.values(this.users);
   }
 
-  public addUser(username: string): User {
-    const validUser = username && typeof username === 'string';
+  public async addUser(username: string): Promise<User> {
+    assert.ok(Boolean(username), "argument 'username' is missing");
+    assert.strictEqual(
+      typeof username,
+      'string',
+      "argument 'chatroomId' must be a string"
+    );
 
-    if (!validUser) {
-      console.log('Invalid attempt to create User', { username });
-      return;
-    }
-
-    const userId = 'todo-generate-uuid';
+    const userId = 'todo-generate-uuid'; // todo: wait for DB implementation to see if includes UUID generation
     this.users[userId] = {
       userId,
       username,
@@ -111,41 +118,37 @@ export class UsersStore {
    * @param fromUserId sender's userId
    * @param message the message to add
    */
-  public addMessageToUser(
+  public async addMessageToUser(
     userId: string,
     fromUserId: string,
     message: Message
-  ): boolean {
-    const toUser = userId && this.users[userId];
-    const fromUser = fromUserId && this.users[fromUserId];
+  ): Promise<Message> {
+    assert.ok(Boolean(userId), "argument 'userId' is missing");
+    assert.ok(Boolean(fromUserId), "argument 'fromUserId' is missing");
+    assert.ok(Boolean(message), "argument 'message' is missing");
 
-    if (toUser && fromUser) {
-      const currentUserMessages = toUser.messages[fromUserId] || [];
-      const updatedUserMessages = [...currentUserMessages, message];
-      this.users[userId].messages[fromUserId] = updatedUserMessages;
-      return true;
-    }
-    console.log('Invalid attempt to add user message:', {
-      userId,
-      fromUserId,
-      message
-    });
-    return false;
+    const [toUser, fromUser] = await Promise.all([
+      this.getUser(userId),
+      this.getUser(fromUserId)
+    ]);
+
+    const currentUserMessages = toUser.messages[fromUser.userId] || [];
+    const updatedUserMessages = [...currentUserMessages, message];
+
+    this.users[userId].messages[fromUser.userId] = updatedUserMessages;
+    return message;
   }
 
   public async addUserToChatrooms(
     userId: string,
     chatroomIds: string[]
-  ): Promise<User> {
-    if (!userId || !chatroomIds) {
-      // Promise.rejects()
-      // todo should assertions be done in express layer or business logic
-      assert.fail('Invalid userId and/or chatroomIds');
-    }
+  ): Promise<Partial<User>> {
+    assert.ok(Boolean(userId), "argument 'userId' is missing");
+    assert.ok(Boolean(chatroomIds), "argument 'chatroomIds' is missing");
 
     const user: User = await this.getUser(userId);
 
-    const currentChatroomIds = (user && user.chatroomIds) || [];
+    const currentChatroomIds = user.chatroomIds || [];
     const updatedChatroomIds: string[] = [
       ...new Set([...currentChatroomIds, ...chatroomIds])
     ];
@@ -154,17 +157,27 @@ export class UsersStore {
     });
   }
 
-  public updateUserDetails(
+  public async updateUserDetails(
     userId: string,
-    updatedDetails: Partial<User>
-  ): User {
-    const currentDetails = this.users[userId];
+    updatedUserDetails: Partial<User>
+  ): Promise<Partial<User>> {
+    assert.ok(Boolean(userId), "argument 'userId' is missing");
+    assert.ok(
+      Boolean(updatedUserDetails),
+      "argument 'updatedUserDetails' is missing"
+    );
+
+    const currentUserDetails: User = await this.getUser(userId);
     const updatedUser = {
-      ...currentDetails,
-      ...updatedDetails,
+      ...currentUserDetails,
+      ...updatedUserDetails,
       userId // since the userId is the users Map/Object Key I'm preventing it from being changed
     };
     this.users[userId] = updatedUser;
-    return updatedUser;
+
+    return {
+      ...updatedUserDetails,
+      userId
+    };
   }
 }

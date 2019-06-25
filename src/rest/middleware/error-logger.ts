@@ -6,6 +6,7 @@ export function logErrorHandler(
   res: Response,
   next: NextFunction
 ) {
-  console.error(err.stack); // todo implement proper logger and vError and related stuff
+  // todo implement proper logger
+  console.warn(err.message);
   next(err);
 }

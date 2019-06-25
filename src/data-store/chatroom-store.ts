@@ -101,17 +101,44 @@ export class ChatroomsStore {
     console.log('Chatrooms Data Store Initialized!');
   }
 
-  public getChatroom(chatroomId: string, requesterUserId: string): Chatroom {
-    const chatroom = this.chatrooms[chatroomId] || ({} as Chatroom);
+  public async getChatroom(
+    chatroomId: string,
+    requesterUserId: string
+  ): Promise<Chatroom> {
+    assert.ok(Boolean(chatroomId), "argument 'chatroomId' is missing");
+    assert.ok(
+      Boolean(requesterUserId),
+      "argument 'requesterUserId' is missing"
+    );
+    assert.strictEqual(
+      typeof chatroomId,
+      'string',
+      "argument 'chatroomId' must be a string"
+    );
+    assert.strictEqual(
+      typeof requesterUserId,
+      'string',
+      "argument 'requesterUserId' must be a string"
+    );
+
+    // todo this will probably be wrapped in vError when DB is implemented
+    const chatroom = this.chatrooms[chatroomId];
+
+    if (!chatroom) {
+      const error = new Error('Chatroom Not Found');
+      error.name = 'Argument Error';
+      throw error;
+    }
+
     const isUserMember =
       chatroom.memberIds && chatroom.memberIds.includes(requesterUserId);
 
     if (!isUserMember) {
-      console.log('Unauthorized attempt to view chatroom', {
-        chatroomId,
-        requesterUserId
-      });
-      return {} as Chatroom; // todo return or throw Error here instead.
+      const error = new Error(
+        `User is not a member of the chatroom '${chatroom.chatroomId}'`
+      );
+      error.name = 'Unauthorized';
+      throw error;
     }
     return chatroom;
   }
@@ -126,13 +153,18 @@ export class ChatroomsStore {
     userId: string,
     memberIds = []
   ): Promise<Chatroom> {
-    const validChatroom = name && typeof name === 'string';
-
-    if (!validChatroom) {
-      console.log('Invalid attempt to create Chatroom', { name });
-      // return new Error('Invalid chatroom name');
-      return Promise.reject(new Error('Argument Error'));
-    }
+    assert.ok(Boolean(name), "argument 'name' is missing");
+    assert.ok(Boolean(userId), "argument 'userId' is missing");
+    assert.strictEqual(
+      typeof name,
+      'string',
+      "argument 'name' must be a string"
+    );
+    assert.strictEqual(
+      typeof userId,
+      'string',
+      "argument 'userId' must be a string"
+    );
 
     const chatroomId = 'todo-generate-chatroomId'; // todo generate uuid here. Or will DB implementation provide it?
     const newChatroom = {
@@ -145,34 +177,17 @@ export class ChatroomsStore {
     return Promise.resolve(newChatroom);
   }
 
-  public async updateChatroomDetails(
-    chatroomId: string,
-    updatedDetails: Partial<Chatroom>
-  ): Promise<Chatroom> {
-    const currentChatroom = this.chatrooms[chatroomId];
-
-    if (!currentChatroom) {
-      return Promise.reject(new Error('Argument Error'));
-    }
-
-    const updatedChatroom = {
-      ...currentChatroom,
-      ...updatedDetails,
-      chatroomId // since the chatroomId is the chatrooms Map/Object Key I'm preventing it from being changed
-    };
-    this.chatrooms[chatroomId] = updatedChatroom;
-    return updatedChatroom;
-  }
-
   public async addMemberToChatrooms(
     chatroomIds: string[],
-    userId: string
-  ): Promise<Chatroom[]> {
-    if (!chatroomIds || !userId) {
-      // Promise.rejects()
-      // todo should assertions be done in express layer or business logic
-      assert.fail('Invalid userId (path) and/or chatroomIds (body');
-    }
+    userId: string,
+    requesterUserId: string
+  ): Promise<Array<Partial<Chatroom>>> {
+    assert.ok(Boolean(chatroomIds), "argument 'chatroomIds' is missing");
+    assert.ok(Boolean(userId), "argument 'userId' is missing");
+    assert.ok(
+      Boolean(requesterUserId),
+      "argument 'requesterUserId' is missing"
+    );
 
     const selectedChatroomsPredicate: ChatroomPredicate = (
       chatroom: Chatroom
@@ -181,18 +196,19 @@ export class ChatroomsStore {
     const userNotMemberPredicate: ChatroomPredicate = (chatroom: Chatroom) =>
       !chatroom.memberIds.includes(userId);
 
-    const addUserToChatroom = async (chatroom: Chatroom): Promise<Chatroom> => {
+    const addUserToChatroom = async (
+      chatroom: Chatroom
+    ): Promise<Partial<Chatroom>> => {
       const currentMembersIds = (chatroom && chatroom.memberIds) || [];
       const updatedMembersIds = [...new Set([...currentMembersIds, userId])];
 
-      return this.updateChatroomDetails(chatroom.chatroomId, {
+      // todo fixme - bug here if users is adding itself as a member to chatroom, they won't already be a member so getChatroom called in updateChatroom... will throw!
+      return this.updateChatroomDetails(chatroom.chatroomId, requesterUserId, {
         memberIds: updatedMembersIds
       });
     };
 
-    const updatedChatrooms: Array<Promise<Chatroom>> = Object.values(
-      this.chatrooms
-    )
+    const updatedChatrooms = Object.values(this.chatrooms)
       .filter(selectedChatroomsPredicate)
       .filter(userNotMemberPredicate)
       .map(addUserToChatroom);
@@ -211,20 +227,57 @@ export class ChatroomsStore {
    */
   public async addMessageToChatroom(
     chatroomId: string,
+    requesterUserId: string,
     message: Message
   ): Promise<Message> {
-    const chatroom = this.chatrooms[chatroomId];
+    assert.ok(Boolean(chatroomId), "argument 'chatroomId' is missing");
+    assert.ok(
+      Boolean(requesterUserId),
+      "argument 'requesterUserId' is missing"
+    );
+    assert.ok(Boolean(message), "argument 'message' is missing");
 
-    if (!chatroom) {
-      return Promise.reject(new Error('Argument Error'));
-    }
+    const chatroom = this.chatrooms[chatroomId];
 
     const currentMessages = chatroom.messages || [];
     const updatedMessages = [...currentMessages, message];
-    await this.updateChatroomDetails(chatroomId, {
+
+    await this.updateChatroomDetails(chatroomId, requesterUserId, {
       messages: updatedMessages
     });
-
     return message;
+  }
+
+  public async updateChatroomDetails(
+    chatroomId: string,
+    requesterUserId: string,
+    updatedChatroomDetails: Partial<Chatroom>
+  ): Promise<Partial<Chatroom>> {
+    assert.ok(Boolean(chatroomId), "argument 'chatroomId' is missing");
+    assert.ok(
+      Boolean(requesterUserId),
+      "argument 'requesterUserId' is missing"
+    );
+    assert.ok(
+      Boolean(updatedChatroomDetails),
+      "argument 'updatedChatroomDetails' is missing"
+    );
+
+    // todo fixme - bug here if users is adding itself as a member to chatroom, they won't already be a member so getChatroom will throw!
+    const currentChatroomDetails = await this.getChatroom(
+      chatroomId,
+      requesterUserId
+    );
+    const updatedChatroom = {
+      ...currentChatroomDetails,
+      ...updatedChatroomDetails,
+      chatroomId // since the chatroomId is the chatrooms Map/Object Key I'm preventing it from being changed
+    };
+    this.chatrooms[chatroomId] = updatedChatroom;
+
+    return {
+      ...updatedChatroomDetails,
+      chatroomId
+    };
   }
 }
