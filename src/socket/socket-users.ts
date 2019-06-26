@@ -1,3 +1,5 @@
+import assert from 'assert';
+
 import { ChatBroadcaster, SocketUsers } from './interfaces';
 import { SocketUser } from './types';
 
@@ -5,12 +7,21 @@ type SocketUsersMap = {
   [userId: string]: SocketUser;
 };
 
+/**
+ * Acts as store for socket users.
+ * This will most likely be refactored to use an external data source like redis
+ * @param chatBroadcaster
+ */
 export function createSocketUsers(
   chatBroadcaster: ChatBroadcaster
 ): SocketUsers {
   const users: SocketUsersMap = {} as SocketUsersMap;
 
-  function addUser({ userId, username, clientId }: SocketUser): SocketUser {
+  async function addUser({
+    userId,
+    username,
+    clientId
+  }: SocketUser): Promise<SocketUser> {
     const user = {
       userId,
       username,
@@ -21,7 +32,10 @@ export function createSocketUsers(
     return user;
   }
 
-  function removeUser({ userId, clientId }: Partial<SocketUser>): void {
+  async function removeUser({
+    userId,
+    clientId
+  }: Partial<SocketUser>): Promise<void> {
     if (userId) {
       delete users[userId];
       chatBroadcaster.broadcastOnlineStatus({ userId, online: false });
@@ -40,19 +54,50 @@ export function createSocketUsers(
     }
   }
 
-  // todo should there be separate functions for clientId and userId?
-  function getUser({ userId, clientId }: Partial<SocketUser>): SocketUser {
-    if (userId) {
-      return users[userId];
-    } else if (clientId) {
-      const clientIdUser = Object.values(users).find(
-        user => user.clientId === clientId
+  async function getUserByUserId(userId: string): Promise<SocketUser> {
+    assert.ok(Boolean(userId), "argument 'userId' is missing");
+    assert.strictEqual(
+      typeof userId,
+      'string',
+      "argument 'userId' must be a string"
+    );
+
+    const user: SocketUser = users[userId];
+
+    if (!user) {
+      const userNotFoundError = new Error(
+        `User with userID '${userId}' not found`
       );
-      return clientIdUser || ({} as SocketUser);
+      userNotFoundError.name = 'Argument Error';
+      throw userNotFoundError;
     }
+    return user;
   }
 
-  function getUserOnlineStatus(userId: string) {
+  async function getUserByClientId(clientId: string): Promise<SocketUser> {
+    assert.ok(Boolean(clientId), "argument 'clientId' is missing");
+    assert.strictEqual(
+      typeof clientId,
+      'string',
+      "argument 'userId' must be a string"
+    );
+
+    const clientIdUser: SocketUser = Object.values(users).find(
+      user => user.clientId === clientId
+    );
+
+    if (!clientIdUser) {
+      const userNotFoundError = new Error(
+        `User with  clientId '${clientId}' not found`
+      );
+      userNotFoundError.name = 'Argument Error';
+      throw userNotFoundError;
+    }
+
+    return clientIdUser;
+  }
+
+  async function getUserOnlineStatus(userId: string): Promise<boolean> {
     const user = userId && users[userId];
     return Boolean(user);
   }
@@ -60,7 +105,8 @@ export function createSocketUsers(
   return {
     addUser,
     removeUser,
-    getUser,
+    getUserByUserId,
+    getUserByClientId,
     getUserOnlineStatus
   };
 }

@@ -10,19 +10,34 @@ export function createGetUsersHandler(
   usersStore: UsersStore
 ): RequestHandler {
   return async function getUsersHandler(req: Request, res: Response) {
-    const removeMessages = (user: User) => {
+    const removeMessages = (user: User): Partial<User> => {
       const { messages, ...partialUser } = user;
       return partialUser;
     };
-    const addOnlineStatus = (user: User): User => ({
-      ...user,
-      online: socketUsers.getUserOnlineStatus(user.userId)
-    });
+
+    const addOnlineStatus = async (user: User): Promise<User> => {
+      const online = await socketUsers
+        .getUserOnlineStatus(user.userId)
+        .catch(({ name, message }: Error) => {
+          const errMessage = `${name} - ${message}`;
+          console.warn(
+            `failed to get user '${user.userId}' online status: ${errMessage}`
+          );
+          return false; // no point failing whole request so defaulting to "online: false" if error occurs, at least for now
+        });
+
+      return {
+        ...user,
+        online
+      };
+    };
 
     const users = await usersStore.getUsers();
-    const formattedUsers = users
-      .map(removeMessages) // removing messages from users until proper DB implementation is in place. Then they'll be no need for this.
-      .map(addOnlineStatus);
+    const formattedUsers = await Promise.all(
+      users
+        .map(removeMessages) // removing messages from users until proper DB implementation is in place. Then they'll be no need for this.
+        .map(addOnlineStatus)
+    );
     return res.send(formattedUsers);
   };
 }

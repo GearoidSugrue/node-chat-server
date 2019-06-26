@@ -4,18 +4,19 @@ import { ChatroomsStore, UsersStore } from '../data-store';
 import { Message } from '../data-store/types';
 import { ChatEvent } from './enums';
 import { ChatBroadcaster, SocketUsers } from './interfaces';
+import { LoginEvent, MessageChatroomEvent, MessageUserEvent } from './types';
 
 const createUserLoginHandler = (
   socketUsers: SocketUsers,
   usersStore: UsersStore
-) => (client: Socket) => async ({ userId, username }) => {
+) => (client: Socket) => async ({ userId, username }: LoginEvent) => {
   try {
     const { chatroomIds } = await usersStore.getUser(userId);
-    socketUsers.addUser({ userId, username, clientId: client.id });
+    await socketUsers.addUser({ userId, username, clientId: client.id });
     client.join(chatroomIds || []);
   } catch (error) {
     // todo implement proper error handling...
-    console.log('Failed to login user...');
+    console.log('Failed to login user', error);
   }
 };
 
@@ -24,31 +25,21 @@ const createMessageChatroomHandler = (
   socketUsers: SocketUsers,
   chatBroadcaster: ChatBroadcaster,
   chatroomStore: ChatroomsStore
-) => (client: Socket) => async ({ chatroomId, message }) => {
-  const { userId, username } = socketUsers.getUser({ clientId: client.id });
-
-  const validMessageAttempt = userId && chatroomId;
-
-  // todo investigate use of assert here and investigate error handlers for it
-  if (!validMessageAttempt) {
-    console.warn(`Invalid attempt to message chatroom:`, {
-      chatroomId,
-      message,
-      clientId: client.id
-    });
-    return undefined;
-  }
-
-  const newMessage: Message = {
-    userId,
-    chatroomId,
-    username,
-    message,
-    timestamp: new Date().toISOString()
-  };
-
+) => (client: Socket) => async ({
+  chatroomId,
+  message
+}: MessageChatroomEvent) => {
   try {
-    await chatroomStore.addMessageToChatroom(chatroomId, newMessage);
+    const { userId, username } = await socketUsers.getUserByClientId(client.id);
+
+    const newMessage: Message = {
+      userId,
+      chatroomId,
+      username,
+      message,
+      timestamp: new Date().toISOString()
+    };
+    await chatroomStore.addMessageToChatroom(chatroomId, userId, newMessage);
 
     chatBroadcaster.sendChatroomMessage(chatroomId, newMessage);
     console.log(
@@ -64,44 +55,46 @@ const createMessageUserHandler = (
   socketUsers: SocketUsers,
   chatBroadcaster: ChatBroadcaster,
   usersStore: UsersStore
-) => (client: Socket) => ({ toUserId, message }) => {
-  const fromSocketUser = socketUsers.getUser({ clientId: client.id });
+) => (client: Socket) => async ({ toUserId, message }: MessageUserEvent) => {
+  try {
+    const fromSocketUser = await socketUsers.getUserByClientId(client.id);
 
-  const validMessageAttempt = message && toUserId && fromSocketUser;
-
-  if (!validMessageAttempt) {
-    console.warn(`Invalid attempt to message user`, {
+    const newMessage: Message = {
+      message,
       toUserId,
-      fromSocketUser,
-      message
-    });
-    return undefined;
-  }
+      username: fromSocketUser.username,
+      userId: fromSocketUser.userId,
+      timestamp: new Date().toISOString()
+    };
 
-  const newMessage: Message = {
-    message,
-    toUserId,
-    username: fromSocketUser.username,
-    userId: fromSocketUser.userId,
-    timestamp: new Date().toISOString()
-  };
+    // This is super hacky! User-to-User messages are currently stored on the user's themselves,
+    // so I have to add the new message to both users.
+    // This will be hopefully be replaced when implementing a real DB!
+    await usersStore.addMessageToUser(
+      toUserId,
+      fromSocketUser.userId,
+      newMessage
+    );
 
-  // This is super hacky! Messages are currently stored on the user's themselves,
-  // so I have to add the new message to both users.
-  // This will be replaced when implementing a proper DB implementation!
-  const addMessageToUser = usersStore.addMessageToUser(
-    toUserId,
-    fromSocketUser.userId,
-    newMessage
-  );
-  const addMessageToFromUser = usersStore.addMessageToUser(
-    fromSocketUser.userId,
-    toUserId,
-    newMessage
-  );
+    const isUniqueUsers = toUserId !== fromSocketUser.userId;
 
-  if (addMessageToUser && addMessageToFromUser) {
-    const toSocketUser = socketUsers.getUser({ userId: toUserId }); // if the other user is not logged, this will be {}
+    if (isUniqueUsers) {
+      await usersStore.addMessageToUser(
+        fromSocketUser.userId,
+        toUserId,
+        newMessage
+      );
+    }
+
+    const toSocketUser = await socketUsers
+      .getUserByUserId(toUserId)
+      .catch((err: Error) => {
+        if (err.name === 'Argument Error') {
+          console.warn('user not online', err.message);
+          return undefined;
+        }
+        throw err;
+      });
 
     const clientIds = Boolean(toSocketUser)
       ? [toSocketUser.clientId, fromSocketUser.clientId]
@@ -113,8 +106,8 @@ const createMessageUserHandler = (
         Boolean(toSocketUser) ? toSocketUser.username : toUserId
       }: ${message}`
     );
-  } else {
-    console.log('Failed to add message to users');
+  } catch (error) {
+    console.log('Failed to add message to user:', error.message);
   }
 };
 

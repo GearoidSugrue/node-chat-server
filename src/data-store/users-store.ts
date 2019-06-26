@@ -97,7 +97,7 @@ export class UsersStore {
     assert.strictEqual(
       typeof username,
       'string',
-      "argument 'chatroomId' must be a string"
+      "argument 'username' must be a string"
     );
 
     const userId = 'todo-generate-uuid'; // todo: wait for DB implementation to see if includes UUID generation
