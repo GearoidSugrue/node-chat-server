@@ -21,9 +21,9 @@ const createDirectMessageSender = (io: socket.Server) => (
   message: Message
 ) => {
   const uniqueClientIds = [...new Set(clientIds)];
-  uniqueClientIds.forEach(clientId => {
-    io.sockets.connected[clientId].send(message);
-  });
+  uniqueClientIds.forEach(clientId =>
+    io.sockets.connected[clientId].send(message)
+  );
 };
 
 const createOnlineStatusBroadcaster = (io: socket.Server) => (
@@ -47,9 +47,19 @@ const createDirectTypingChangeSender = (io: socket.Server) => (
     directTypingChange
   );
 
+// todo maybe chat-broadcaster could use SocketUsers to get clientIds rather leaving it for rest layer
 const createNewChatroomBroadcaster = (io: socket.Server) => (
-  chatroom: Chatroom
-) => io.emit(ChatBroadcasterEvent.NEW_CHATROOM, chatroom);
+  chatroom: Chatroom,
+  clientIds: string[]
+) => {
+  const uniqueClientIds = [...new Set(clientIds)];
+  uniqueClientIds.forEach(clientId =>
+    io.sockets.connected[clientId].emit(
+      ChatBroadcasterEvent.NEW_CHATROOM,
+      chatroom
+    )
+  );
+};
 
 const createNewUserBroadcaster = (io: socket.Server) => (user: User) =>
   io.emit(ChatBroadcasterEvent.NEW_USER, user);

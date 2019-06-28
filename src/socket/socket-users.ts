@@ -54,6 +54,14 @@ export function createSocketUsers(
     }
   }
 
+  async function getUsersByUserIds(userIds: string[]): Promise<SocketUser[]> {
+    // todo add assert that checks type of userIds is string array
+    if (!userIds.length) {
+      return [];
+    }
+    return userIds.map(userId => users[userId]);
+  }
+
   async function getUserByUserId(userId: string): Promise<SocketUser> {
     assert.ok(Boolean(userId), "argument 'userId' is missing");
     assert.strictEqual(
@@ -105,6 +113,7 @@ export function createSocketUsers(
   return {
     addUser,
     removeUser,
+    getUsersByUserIds,
     getUserByUserId,
     getUserByClientId,
     getUserOnlineStatus

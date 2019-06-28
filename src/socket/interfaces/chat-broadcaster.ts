@@ -17,6 +17,6 @@ export interface ChatBroadcaster {
     clientId: string,
     directTypingChange: DirectTypingEvent
   ) => void;
-  broadcastNewChatroom: (chatroom: Chatroom) => void;
+  broadcastNewChatroom: (chatroom: Chatroom, clientIds: string[]) => void;
   broadcastNewUser: (user: User) => void;
 }

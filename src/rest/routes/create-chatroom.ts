@@ -3,10 +3,12 @@ import { VError } from 'verror';
 
 import { ChatroomsStore, UsersStore } from '../../data-store';
 import { Chatroom, Message, User } from '../../data-store/types';
-import { ChatBroadcaster } from '../../socket/interfaces';
+import { ChatBroadcaster, SocketUsers } from '../../socket/interfaces';
+import { SocketUser } from '../../socket/types';
 import { BodyParam, HeaderParam } from '../enums';
 
 export function createAddChatroomHandler(
+  socketUsers: SocketUsers,
   chatBroadcaster: ChatBroadcaster,
   usersStore: UsersStore,
   chatroomsStore: ChatroomsStore
@@ -28,7 +30,7 @@ export function createAddChatroomHandler(
       username,
       chatroomId: newChatroom.chatroomId,
       userId: requesterUserId,
-      message: `${username} has created #${chatroomName}!`,
+      message: `${username} has created chatroom # ${chatroomName}`,
       timestamp: new Date().toISOString()
     };
 
@@ -37,7 +39,14 @@ export function createAddChatroomHandler(
       requesterUserId,
       createdChatroomMessage
     );
-    chatBroadcaster.broadcastNewChatroom(newChatroom);
+
+    const members: SocketUser[] = await socketUsers.getUsersByUserIds(
+      newChatroom.memberIds
+    );
+    const membersClientIds: string[] = members.map(
+      socketUser => socketUser.clientId
+    );
+    chatBroadcaster.broadcastNewChatroom(newChatroom, membersClientIds);
     chatBroadcaster.sendChatroomMessage(
       newChatroom.chatroomId,
       createdChatroomMessage

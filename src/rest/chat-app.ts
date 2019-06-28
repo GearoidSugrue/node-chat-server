@@ -48,6 +48,7 @@ export function initializeChatRestApp(
   const getUsersHandler = createGetUsersHandler(socketUsers, usersStore);
   const getUserMessagesHandler = createGetUserMessagesHandler(usersStore);
   const createChatroomHandler = createAddChatroomHandler(
+    socketUsers,
     chatBroadcaster,
     usersStore,
     chatroomsStore

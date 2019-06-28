@@ -166,6 +166,8 @@ export class ChatroomsStore {
       "argument 'userId' must be a string"
     );
 
+    // todo: probably should validate that memberIds are actually valid users
+
     const chatroomId = 'todo-generate-chatroomId'; // todo generate uuid here. Or will DB implementation provide it?
     const newChatroom = {
       name,
