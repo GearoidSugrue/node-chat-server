@@ -1,1 +1,1 @@
-export { ChatEvent } from './chat-event.enum';
+export { ChatEvent } from './chat-receiver-event.enum';

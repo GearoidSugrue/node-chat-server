@@ -1,9 +1,13 @@
 import socket from 'socket.io';
 
 import { Chatroom, Message, User } from '../data-store/types';
-import { ChatEvent } from './enums';
+import { ChatBroadcasterEvent } from './enums/chat-broadcaster-events';
 import { ChatBroadcaster } from './interfaces';
-import { UserOnlineStatus } from './types';
+import {
+  ChatroomTypingEvent,
+  DirectTypingEvent,
+  UserOnlineStatus
+} from './types';
 
 const createChatroomMessageSender = (io: socket.Server) => (
   chatroomId: string,
@@ -24,20 +28,48 @@ const createDirectMessageSender = (io: socket.Server) => (
 
 const createOnlineStatusBroadcaster = (io: socket.Server) => (
   onlineStatus: UserOnlineStatus
-) => io.emit(ChatEvent.ONLINE_STATUS_CHANGE, onlineStatus);
+) => io.emit(ChatBroadcasterEvent.ONLINE_STATUS_CHANGE, onlineStatus);
+
+const createChatroomTypingChangeBroadcaster = (io: socket.Server) => (
+  chatroomTypingChange: ChatroomTypingEvent
+) => {
+  io.to(chatroomTypingChange.toChatroomId).emit(
+    ChatBroadcasterEvent.CHATROOM_TYPING_CHANGE,
+    chatroomTypingChange
+  );
+  console.log('broadcasting user typing in chatroom change:', {
+    chatroomTypingChange
+  });
+};
+
+const createDirectTypingChangeSender = (io: socket.Server) => (
+  clientId: string,
+  directTypingChange: DirectTypingEvent
+) => {
+  io.sockets.connected[clientId].emit(
+    ChatBroadcasterEvent.DIRECT_TYPING_CHANGE,
+    directTypingChange
+  );
+  // io.emit(ChatBroadcasterEvent.CHATROOM_TYPING_CHANGE, typingChange);
+  console.log('broadcasting user typing change:', { directTypingChange });
+};
 
 const createNewChatroomBroadcaster = (io: socket.Server) => (
   chatroom: Chatroom
-) => io.emit(ChatEvent.NEW_CHATROOM, chatroom);
+) => io.emit(ChatBroadcasterEvent.NEW_CHATROOM, chatroom);
 
 const createNewUserBroadcaster = (io: socket.Server) => (user: User) =>
-  io.emit(ChatEvent.NEW_USER, user);
+  io.emit(ChatBroadcasterEvent.NEW_USER, user);
 
 // todo investigate if usersStore and chatrooms store should be moved here instead of in chat-receiver
 export function createChatBroadcaster(io: socket.Server): ChatBroadcaster {
   const sendChatroomMessage = createChatroomMessageSender(io);
   const sendDirectMessage = createDirectMessageSender(io);
   const broadcastOnlineStatus = createOnlineStatusBroadcaster(io);
+  const broadcastChatroomTypingChange = createChatroomTypingChangeBroadcaster(
+    io
+  );
+  const sendDirectTypingChange = createDirectTypingChangeSender(io);
   const broadcastNewChatroom = createNewChatroomBroadcaster(io);
   const broadcastNewUser = createNewUserBroadcaster(io);
 
@@ -45,6 +77,8 @@ export function createChatBroadcaster(io: socket.Server): ChatBroadcaster {
     sendChatroomMessage,
     sendDirectMessage,
     broadcastOnlineStatus,
+    broadcastChatroomTypingChange,
+    sendDirectTypingChange,
     broadcastNewChatroom,
     broadcastNewUser
   };

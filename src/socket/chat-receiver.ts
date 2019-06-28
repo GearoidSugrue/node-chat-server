@@ -4,7 +4,14 @@ import { ChatroomsStore, UsersStore } from '../data-store';
 import { Message } from '../data-store/types';
 import { ChatEvent } from './enums';
 import { ChatBroadcaster, SocketUsers } from './interfaces';
-import { LoginEvent, MessageChatroomEvent, MessageUserEvent } from './types';
+import {
+  ChatroomTypingEvent,
+  DirectTypingEvent,
+  LoginEvent,
+  MessageChatroomEvent,
+  MessageUserEvent,
+  SocketUser
+} from './types';
 
 const createUserLoginHandler = (
   socketUsers: SocketUsers,
@@ -14,9 +21,9 @@ const createUserLoginHandler = (
     const { chatroomIds } = await usersStore.getUser(userId);
     await socketUsers.addUser({ userId, username, clientId: client.id });
     client.join(chatroomIds || []);
-  } catch (error) {
+  } catch (err) {
     // todo implement proper error handling...
-    console.log('Failed to login user', error);
+    console.log('failed to login user:', err.message);
   }
 };
 
@@ -45,8 +52,8 @@ const createMessageChatroomHandler = (
     console.log(
       `${username} (${userId}) messaged chatroom ${chatroomId}: ${message}`
     );
-  } catch (error) {
-    console.log('Failed to add message to chatroom', error);
+  } catch (err) {
+    console.log('failed to add message to chatroom:', err.message);
   }
 };
 
@@ -90,7 +97,7 @@ const createMessageUserHandler = (
       .getUserByUserId(toUserId)
       .catch((err: Error) => {
         if (err.name === 'Argument Error') {
-          console.warn('user not online', err.message);
+          console.warn('user not online:', err.message);
           return undefined;
         }
         throw err;
@@ -106,10 +113,81 @@ const createMessageUserHandler = (
         Boolean(toSocketUser) ? toSocketUser.username : toUserId
       }: ${message}`
     );
-  } catch (error) {
-    console.log('Failed to add message to user:', error.message);
+  } catch (err) {
+    console.log('failed to add message to user:', err.message);
+    throw err;
   }
 };
+
+const createTypingInChatroomHandler = (
+  socketUsers: SocketUsers,
+  chatBroadcaster: ChatBroadcaster
+) => (client: Socket) => async ({
+  typing,
+  toChatroomId
+}: Partial<ChatroomTypingEvent>) => {
+  try {
+    const fromSocketUser = await socketUsers.getUserByClientId(client.id);
+
+    const userTypingChatroom: ChatroomTypingEvent = {
+      typing,
+      toChatroomId,
+      userId: fromSocketUser.userId,
+      username: fromSocketUser.username
+    };
+
+    chatBroadcaster.broadcastChatroomTypingChange(userTypingChatroom);
+  } catch (err) {
+    console.log(
+      'failed to broadcast user typing in chatroom change:',
+      err.message
+    );
+    throw err;
+  }
+};
+
+const createTypingDirectHandler = (
+  socketUsers: SocketUsers,
+  chatBroadcaster: ChatBroadcaster
+) => (client: Socket) => async ({
+  typing,
+  toUserId
+}: Partial<DirectTypingEvent>) => {
+  try {
+    const fromUserPromise: Promise<SocketUser> = socketUsers.getUserByClientId(
+      client.id
+    );
+    const toUserPromise: Promise<SocketUser> = socketUsers
+      .getUserByUserId(toUserId)
+      .catch(err => {
+        console.log(`user '${toUserId}' is offline`);
+        return {} as SocketUser;
+      });
+
+    const [fromUser, toUser] = await Promise.all([
+      fromUserPromise,
+      toUserPromise
+    ]);
+
+    if (toUser) {
+      const userTypingChatroom: DirectTypingEvent = {
+        typing,
+        toUserId,
+        userId: fromUser.userId,
+        username: fromUser.username
+      };
+      chatBroadcaster.sendDirectTypingChange(
+        toUser.clientId,
+        userTypingChatroom
+      );
+    }
+  } catch (err) {
+    console.log('failed to broadcast user typing direct change:', err.message);
+    throw err;
+  }
+};
+
+// todo add typing and stop typing event handlers. *Must be room/user specific!
 
 export function initializeChatSocketReceiver(
   io: socket.Server,
@@ -129,6 +207,14 @@ export function initializeChatSocketReceiver(
     chatBroadcaster,
     usersStore
   );
+  const typingInChatroomHandler = createTypingInChatroomHandler(
+    socketUsers,
+    chatBroadcaster
+  );
+  const typingDirectHandler = createTypingDirectHandler(
+    socketUsers,
+    chatBroadcaster
+  );
 
   // todo investigate socket preappendListener(...) for logging purposes. Perhaps it can have it's own closure?
   io.on(ChatEvent.CONNECT, (client: Socket) => {
@@ -143,5 +229,31 @@ export function initializeChatSocketReceiver(
     );
     client.on(ChatEvent.MESSAGE_CHATROOM, messageChatroomHandler(client));
     client.on(ChatEvent.MESSAGE_USER, messageUserHandler(client));
+    client.on(ChatEvent.CHATROOM_TYPING, typingInChatroomHandler(client));
+    client.on(ChatEvent.DIRECT_TYPING, typingDirectHandler(client));
+
+    client.on('error', (err: Error) => {
+      console.log('An error ocurred!!!', err.message);
+    });
   });
 }
+
+/* todo implement handlers on the ui and on node server for:
+
+Connecting − When the client is in the process of connecting.
+
+Disconnect − When the client is disconnected.
+
+Connect_failed − When the connection to the server fails.
+
+Error − An error event is sent from the server.
+
+Message − When the server sends a message using the send function.
+
+Reconnect − When reconnection to the server is successful.
+
+Reconnecting − When the client is in the process of connecting.
+
+Reconnect_failed − When the reconnection attempt fails.
+
+*/

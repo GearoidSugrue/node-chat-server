@@ -23,6 +23,7 @@ const socketOptions: ServerOptions = {
   cookie: false
 };
 const io = socket(server, socketOptions);
+// io.adapter(redis({ host: 'localhost', port: 6379 }));
 
 const chatBroadcaster: ChatBroadcaster = createChatBroadcaster(io);
 const socketUsers: SocketUsers = createSocketUsers(chatBroadcaster); // todo pass to express router

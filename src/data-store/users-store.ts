@@ -123,6 +123,8 @@ export class UsersStore {
     fromUserId: string,
     message: Message
   ): Promise<Message> {
+    // throw new Error('blah!');
+
     assert.ok(Boolean(userId), "argument 'userId' is missing");
     assert.ok(Boolean(fromUserId), "argument 'fromUserId' is missing");
     assert.ok(Boolean(message), "argument 'message' is missing");
