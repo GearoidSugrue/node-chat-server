@@ -4,6 +4,4 @@ export enum ChatBroadcasterEvent {
   NEW_CHATROOM = 'rooms updated', // todo rename when implemented on front-end
   CHATROOM_TYPING_CHANGE = 'typing in chatroom change',
   DIRECT_TYPING_CHANGE = 'direct typing change'
-
-  // TYPING_CHANGE = 'typing in chatroom change'
 }

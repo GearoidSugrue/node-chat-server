@@ -169,7 +169,7 @@ const createTypingDirectHandler = (
       toUserPromise
     ]);
 
-    if (toUser) {
+    if (toUser.clientId) {
       const userTypingChatroom: DirectTypingEvent = {
         typing,
         toUserId,
@@ -183,7 +183,6 @@ const createTypingDirectHandler = (
     }
   } catch (err) {
     console.log('failed to broadcast user typing direct change:', err.message);
-    throw err;
   }
 };
 

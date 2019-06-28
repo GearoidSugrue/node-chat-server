@@ -1,5 +1,3 @@
-// todo split these up into ChatReceiverEvents and ChatBroadcasterEvents
-
 export enum ChatEvent {
   CONNECT = 'connect',
   DISCONNECT = 'disconnect',

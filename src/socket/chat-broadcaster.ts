@@ -32,27 +32,20 @@ const createOnlineStatusBroadcaster = (io: socket.Server) => (
 
 const createChatroomTypingChangeBroadcaster = (io: socket.Server) => (
   chatroomTypingChange: ChatroomTypingEvent
-) => {
-  io.to(chatroomTypingChange.toChatroomId).emit(
-    ChatBroadcasterEvent.CHATROOM_TYPING_CHANGE,
-    chatroomTypingChange
-  );
-  console.log('broadcasting user typing in chatroom change:', {
-    chatroomTypingChange
-  });
-};
+) =>
+  io
+    .to(chatroomTypingChange.toChatroomId)
+    .emit(ChatBroadcasterEvent.CHATROOM_TYPING_CHANGE, chatroomTypingChange);
 
+// todo assert clientId
 const createDirectTypingChangeSender = (io: socket.Server) => (
   clientId: string,
   directTypingChange: DirectTypingEvent
-) => {
+) =>
   io.sockets.connected[clientId].emit(
     ChatBroadcasterEvent.DIRECT_TYPING_CHANGE,
     directTypingChange
   );
-  // io.emit(ChatBroadcasterEvent.CHATROOM_TYPING_CHANGE, typingChange);
-  console.log('broadcasting user typing change:', { directTypingChange });
-};
 
 const createNewChatroomBroadcaster = (io: socket.Server) => (
   chatroom: Chatroom

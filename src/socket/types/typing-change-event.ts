@@ -1,16 +1,3 @@
-// export type ChatroomTypingEvent = Readonly<{
-//   typing: boolean;
-//   toChatroomId: string;
-// }>;
-
-// // tslint:disable-next-line: interface-name
-// export interface ChatroomTypingChangeEvent extends ChatroomTypingEvent {
-//   userId: string;
-//   username: string;
-// }
-
-// // ---
-
 type TypingChange = Readonly<{
   typing: boolean;
   userId: string;
