@@ -43,9 +43,13 @@ export function createAddChatroomHandler(
     const members: SocketUser[] = await socketUsers.getUsersByUserIds(
       newChatroom.memberIds
     );
-    const membersClientIds: string[] = members.map(
-      socketUser => socketUser.clientId
-    );
+
+    const loggedInUserPredicate = (socketUser: SocketUser) =>
+      Boolean(socketUser);
+
+    const membersClientIds: string[] = members
+      .filter(loggedInUserPredicate)
+      .map(socketUser => socketUser.clientId);
     chatBroadcaster.broadcastNewChatroom(newChatroom, membersClientIds);
     chatBroadcaster.sendChatroomMessage(
       newChatroom.chatroomId,
