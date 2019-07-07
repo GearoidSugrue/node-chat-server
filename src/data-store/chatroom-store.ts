@@ -1,4 +1,6 @@
 import assert from 'assert';
+import uuidv4 from 'uuid/v4';
+
 import { Chatroom, Message } from './types';
 
 const dummyMessages = [
@@ -166,9 +168,9 @@ export class ChatroomsStore {
       "argument 'userId' must be a string"
     );
 
-    // todo: probably should validate that memberIds are actually valid users
+    // todo: Validate that memberIds are actually valid users
 
-    const chatroomId = 'todo-generate-chatroomId'; // todo generate uuid here. Or will DB implementation provide it?
+    const chatroomId = uuidv4();
     const newChatroom = {
       name,
       chatroomId,
@@ -204,7 +206,6 @@ export class ChatroomsStore {
       const currentMembersIds = (chatroom && chatroom.memberIds) || [];
       const updatedMembersIds = [...new Set([...currentMembersIds, userId])];
 
-      // todo fixme - bug here if users is adding itself as a member to chatroom, they won't already be a member so getChatroom called in updateChatroom... will throw!
       return this.updateChatroomDetails(chatroom.chatroomId, requesterUserId, {
         memberIds: updatedMembersIds
       });
@@ -264,14 +265,16 @@ export class ChatroomsStore {
       Boolean(updatedChatroomDetails),
       "argument 'updatedChatroomDetails' is missing"
     );
+    const chatroom = this.chatrooms[chatroomId];
 
-    // todo fixme - bug here if users is adding itself as a member to chatroom, they won't already be a member so getChatroom will throw!
-    const currentChatroomDetails = await this.getChatroom(
-      chatroomId,
-      requesterUserId
-    );
+    if (!chatroom) {
+      const error = new Error('Chatroom Not Found');
+      error.name = 'Argument Error';
+      throw error;
+    }
+
     const updatedChatroom = {
-      ...currentChatroomDetails,
+      ...chatroom,
       ...updatedChatroomDetails,
       chatroomId // since the chatroomId is the chatrooms Map/Object Key I'm preventing it from being changed
     };

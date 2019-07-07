@@ -1,4 +1,6 @@
 import assert from 'assert';
+import uuidv4 from 'uuid/v4';
+
 import { Message, User } from './types';
 
 const dummyUsers: { [key: string]: User } = {
@@ -100,7 +102,7 @@ export class UsersStore {
       "argument 'username' must be a string"
     );
 
-    const userId = 'todo-generate-uuid'; // todo: wait for DB implementation to see if includes UUID generation
+    const userId = uuidv4();
     this.users[userId] = {
       userId,
       username,
