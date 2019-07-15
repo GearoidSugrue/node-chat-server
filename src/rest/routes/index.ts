@@ -1,4 +1,4 @@
-export * from './add-user-to-chatroom';
+export * from './add-user-to-chatrooms';
 export * from './create-chatroom';
 export * from './create-user';
 export * from './get-chatroom-messages';
