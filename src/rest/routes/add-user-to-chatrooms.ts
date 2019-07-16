@@ -17,21 +17,17 @@ export function createAddUserToChatroomsHandler(
     next: NextFunction
   ) {
     const userId: string = req.params[PathParam.userId];
-    const chatroomsIds: string[] = req.body[BodyParam.chatroomIds];
+    const chatroomIds: string[] = req.body[BodyParam.chatroomIds];
     const requesterUserId: string = req.header(HeaderParam.RequesterUserId);
 
     const [updatedChatrooms] = await Promise.all([
-      chatroomsStore.addMemberToChatrooms(
-        chatroomsIds,
-        userId,
-        requesterUserId
-      ),
-      usersStore.addUserToChatrooms(userId, chatroomsIds)
+      chatroomsStore.addMemberToChatrooms(chatroomIds, userId, requesterUserId),
+      usersStore.addUserToChatrooms(userId, chatroomIds)
     ]);
 
     const { username }: User = await usersStore.getUser(userId);
 
-    // todo: fixme! - errors thrown in here are not being caught correctly
+    // TODO: fix - errors thrown in here are not being caught correctly
     const addUserJoinedMessage = async ({ chatroomId }: Chatroom) => {
       const newMemberMessage: Message = {
         userId,
@@ -40,13 +36,14 @@ export function createAddUserToChatroomsHandler(
         message: `${username} has joined the chat!`,
         timestamp: new Date().toISOString()
       };
+
       await chatroomsStore.addMessageToChatroom(
         chatroomId,
         requesterUserId,
         newMemberMessage
       );
       chatBroadcaster.sendChatroomMessage(chatroomId, newMemberMessage);
-      // chatBroadcaster.broadcastNewChatroomMember();
+      chatBroadcaster.broadcastNewChatroomMember(chatroomId, userId);
     };
 
     await Promise.all(updatedChatrooms.map(addUserJoinedMessage));

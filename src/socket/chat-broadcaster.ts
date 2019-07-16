@@ -61,6 +61,16 @@ const createNewChatroomBroadcaster = (io: socket.Server) => (
   );
 };
 
+const createNewChatroomMemberBroadcaster = (io: socket.Server) => (
+  chatroomId: string,
+  newUserId: string
+) => {
+  io.to(chatroomId).emit(ChatBroadcasterEvent.NEW_CHATROOM_MEMBER, {
+    chatroomId,
+    newUserId
+  });
+};
+
 const createNewUserBroadcaster = (io: socket.Server) => (user: User) =>
   io.emit(ChatBroadcasterEvent.NEW_USER, user);
 
@@ -74,6 +84,7 @@ export function createChatBroadcaster(io: socket.Server): ChatBroadcaster {
   );
   const sendDirectTypingChange = createDirectTypingChangeSender(io);
   const broadcastNewChatroom = createNewChatroomBroadcaster(io);
+  const broadcastNewChatroomMember = createNewChatroomMemberBroadcaster(io);
   const broadcastNewUser = createNewUserBroadcaster(io);
 
   return {
@@ -83,6 +94,7 @@ export function createChatBroadcaster(io: socket.Server): ChatBroadcaster {
     broadcastChatroomTypingChange,
     sendDirectTypingChange,
     broadcastNewChatroom,
+    broadcastNewChatroomMember,
     broadcastNewUser
   };
 }

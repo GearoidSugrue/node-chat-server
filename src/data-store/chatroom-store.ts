@@ -68,6 +68,13 @@ const dummyMessages = [
 
 type ChatroomPredicate = (chatroom: Chatroom) => boolean;
 
+/*
+  ? Maybe a stream based approach would be cool. 
+  .e.g. ChatroomStore exposes Observables that the socket implementations can subscribe to. 
+        Then instead of the express middleware being responsible for call the appropriate socket functions, 
+        socket itself will decide what to do. The result would remove the socket dependency and code from the middleware layer.
+*/
+
 // holds user and chatroom data. Hard-coded for now but will use some DB in future.
 export class ChatroomsStore {
   public readonly chatrooms: { [key: string]: Chatroom };

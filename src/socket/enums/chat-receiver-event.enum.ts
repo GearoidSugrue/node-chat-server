@@ -6,5 +6,6 @@ export enum ChatEvent {
   MESSAGE_CHATROOM = 'new message to chatroom',
   MESSAGE_USER = 'new message to user',
   CHATROOM_TYPING = 'typing in chatroom',
-  DIRECT_TYPING = 'typing direct'
+  DIRECT_TYPING = 'typing direct',
+  JOIN_CHATROOMS = 'join chatrooms'
 }

@@ -1,0 +1,294 @@
+{
+	"info": {
+		"_postman_id": "fbf0e8e8-93ab-4f21-b05a-aae9bcfa41f0",
+		"name": "node-chat-server",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Users",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"url": {
+					"raw": "{{hostname}}{{port}}/users",
+					"host": [
+						"{{hostname}}{{port}}"
+					],
+					"path": [
+						"users"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "User Messages",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "RequesterUserId",
+						"type": "text",
+						"value": "ddddd-eeeee-fffff"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"url": {
+					"raw": "{{hostname}}{{port}}/users/aaaaa-bbbbb-cccc/messages",
+					"host": [
+						"{{hostname}}{{port}}"
+					],
+					"path": [
+						"users",
+						"aaaaa-bbbbb-cccc",
+						"messages"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Chatrooms",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"url": {
+					"raw": "{{hostname}}{{port}}/rooms",
+					"host": [
+						"{{hostname}}{{port}}"
+					],
+					"path": [
+						"rooms"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Chatroom",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "RequesterUserId",
+						"value": "aaaaa-bbbbb-cccc",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"url": {
+					"raw": "{{hostname}}{{port}}/rooms/9999-8888-77777",
+					"host": [
+						"{{hostname}}{{port}}"
+					],
+					"path": [
+						"rooms",
+						"9999-8888-77777"
+					],
+					"query": [
+						{
+							"key": "",
+							"value": "",
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Chatroom Messages",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "RequesterUserId",
+						"value": "aaaaa-bbbbb-cccc",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"url": {
+					"raw": "{{hostname}}{{port}}/rooms/9999-8888-77777/messages",
+					"host": [
+						"{{hostname}}{{port}}"
+					],
+					"path": [
+						"rooms",
+						"9999-8888-77777",
+						"messages"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Chatroom",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "RequesterUserId",
+						"value": "aaaaa-bbbbb-cccc",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"name\": \"postman-room\",\n    \"memberIds\": [\"aaaaa-bbbbb-cccc\"]\n}"
+				},
+				"url": {
+					"raw": "{{hostname}}{{port}}/rooms",
+					"host": [
+						"{{hostname}}{{port}}"
+					],
+					"path": [
+						"rooms"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "User to Chatroom (Add to User to Chatrooms)",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "RequesterUserId",
+						"type": "text",
+						"value": "aaaaa-bbbbb-cccc"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"chatroomIds\": [\"9999-8888-77777\", \"1111-2222-33333\"]\n}"
+				},
+				"url": {
+					"raw": "{{hostname}}{{port}}/users/aaaaa-bbbbb-cccc/rooms",
+					"host": [
+						"{{hostname}}{{port}}"
+					],
+					"path": [
+						"users",
+						"aaaaa-bbbbb-cccc",
+						"rooms"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "User to Chatroom (Add to User to Chatrooms) Copy",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "RequesterUserId",
+						"type": "text",
+						"value": "aaaaa-bbbbb-cccc"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"chatroomIds\": [\"9999-8888-77777\", \"1111-2222-33333\"]\n}"
+				},
+				"url": {
+					"raw": "{{hostname}}{{port}}/users/aaaaa-bbbbb-cccc/rooms",
+					"host": [
+						"{{hostname}}{{port}}"
+					],
+					"path": [
+						"users",
+						"aaaaa-bbbbb-cccc",
+						"rooms"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "User",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"username\": \"Postman User\"\n}"
+				},
+				"url": {
+					"raw": "{{hostname}}{{port}}/users",
+					"host": [
+						"{{hostname}}{{port}}"
+					],
+					"path": [
+						"users"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

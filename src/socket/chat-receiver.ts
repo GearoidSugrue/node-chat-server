@@ -7,6 +7,7 @@ import { ChatBroadcaster, SocketUsers } from './interfaces';
 import {
   ChatroomTypingEvent,
   DirectTypingEvent,
+  JoinChatroomsEvent,
   LoginEvent,
   MessageChatroomEvent,
   MessageUserEvent,
@@ -142,7 +143,6 @@ const createTypingInChatroomHandler = (
       'failed to broadcast user typing in chatroom change:',
       err.message
     );
-    throw err;
   }
 };
 
@@ -186,7 +186,10 @@ const createTypingDirectHandler = (
   }
 };
 
-// todo add typing and stop typing event handlers. *Must be room/user specific!
+// TODO Remove this when better solution is available.
+const createJoinChatroomsHandler = () => (client: Socket) => async ({
+  chatroomIds
+}: JoinChatroomsEvent) => client.join(chatroomIds || []);
 
 export function initializeChatSocketReceiver(
   io: socket.Server,
@@ -214,7 +217,9 @@ export function initializeChatSocketReceiver(
     socketUsers,
     chatBroadcaster
   );
+  const joinChatroomsHandler = createJoinChatroomsHandler();
 
+  // ! chat-receiver has not top level error handling like the express middleware has. i.e. Errors thrown in handlers are not being caught.
   // todo investigate socket preappendListener(...) for logging purposes. Perhaps it can have it's own closure?
   io.on(ChatEvent.CONNECT, (client: Socket) => {
     // userId and username should come from token so this will need to refactored when auth is implemented!
@@ -230,6 +235,7 @@ export function initializeChatSocketReceiver(
     client.on(ChatEvent.MESSAGE_USER, messageUserHandler(client));
     client.on(ChatEvent.CHATROOM_TYPING, typingInChatroomHandler(client));
     client.on(ChatEvent.DIRECT_TYPING, typingDirectHandler(client));
+    client.on(ChatEvent.JOIN_CHATROOMS, joinChatroomsHandler(client));
 
     client.on('error', (err: Error) => {
       console.log('An error ocurred!!!', err.message);
@@ -237,7 +243,7 @@ export function initializeChatSocketReceiver(
   });
 }
 
-/* todo implement handlers on the ui and on node server for:
+/* // TODO implement handlers on the ui and on node server for:
 
 Connecting − When the client is in the process of connecting.
 
